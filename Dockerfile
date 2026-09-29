@@ -15,7 +15,7 @@ WORKDIR /var/www
 # Copy Composer files first
 COPY backend/composer.json backend/composer.lock ./backend/
 
-# Install Laravel dependencies without running scripts
+# Install Laravel dependencies
 RUN cd backend && composer install \
     --no-dev \
     --no-interaction \
@@ -27,8 +27,13 @@ RUN cd backend && composer install \
 COPY backend ./backend
 
 # Create required Laravel directories
-RUN mkdir -p backend/bootstrap/cache \
-    && mkdir -p backend/resources/views \
+RUN mkdir -p \
+    backend/bootstrap/cache \
+    backend/storage/framework/cache \
+    backend/storage/framework/sessions \
+    backend/storage/framework/views \
+    backend/storage/logs \
+    backend/resources/views \
     && chmod -R 775 backend/bootstrap/cache \
     && chmod -R 775 backend/storage \
     && chmod -R 775 backend/resources/views
@@ -39,7 +44,7 @@ RUN cd backend && php artisan package:discover --ansi
 # Copy Vue frontend
 COPY frontend ./frontend
 
-# Install Node.js and build Vue
+# Install Node.js and build Vue frontend
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get update \
     && apt-get install -y nodejs \
@@ -49,6 +54,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && rm -rf node_modules \
     && rm -rf /var/lib/apt/lists/*
 
+# Use Laravel backend
 WORKDIR /var/www/backend
 
 # Create storage link
