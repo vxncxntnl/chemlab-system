@@ -18,10 +18,13 @@ RUN cd backend && composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
-    --optimize-autoloader
+    --optimize-autoloader \
+    --no-scripts
 
 COPY backend ./backend
+RUN cd backend && php artisan package:discover --ansi
 COPY frontend ./frontend
+
 
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
