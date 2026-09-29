@@ -28,7 +28,7 @@ use App\Http\Controllers\Lab\EquipmentController as LabEquipmentController;
 use App\Http\Controllers\Lab\LabInventoryController as LabLabInventoryController;
 use App\Http\Controllers\Lab\MaintenanceController as LabMaintenanceController;
 use App\Http\Controllers\Faculty\DashboardController as FacultyDashboardController;
-use App\Http\Controllers\Faculty\BorrowingController as FacultyBorrowingController;
+use App\Http\Controllers\Facity\BorrowingController as FacultyBorrowingController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\BorrowingController as StudentBorrowingController;
@@ -62,13 +62,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/complete-profile', [\App\Http\Controllers\Auth\CompleteProfileController::class, 'store'])->name('profile.complete.store');
 });
 
+// Homepage redirects directly to login
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect()->route('login');
 });
 
 // Redirect to role-based dashboard
@@ -107,12 +103,6 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
 
     // Borrowings within assigned campus — lab staff release and process returns
     // only; approving/rejecting whether a request should be granted is Admin's call.
-    // create()/store() (lab-staff-initiated borrows, e.g. for walk-in use) were
-    // implemented and tested at the controller/service level but the routes
-    // themselves were never registered — Create.vue posted to a route that
-    // didn't exist and nothing linked to it, making the whole feature
-    // unreachable. Restored here alongside the lab-inventory fix below, same
-    // root cause (a controller method with no route wired to it).
     Route::get('/borrowings', [LabBorrowingController::class, 'index'])->name('borrowings.index');
     Route::get('/borrowings/create', [LabBorrowingController::class, 'create'])->name('borrowings.create');
     Route::post('/borrowings', [LabBorrowingController::class, 'store'])->name('borrowings.store');
@@ -133,13 +123,7 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
     Route::post('/maintenance', [LabMaintenanceController::class, 'store'])->name('maintenance.store');
     Route::get('/maintenance/{maintenance}', [LabMaintenanceController::class, 'show'])->name('maintenance.show');
 
-    // Lab Inventory (chemistry/physics stockroom) — read + a narrow
-    // quantity/condition update. The controller (Lab\LabInventoryController)
-    // and its Vue page already existed fully built, and this route group's
-    // own import alias (LabLabInventoryController, top of file) was already
-    // in place — only the actual Route:: registrations were missing, which
-    // made the page's route() calls fail outright and left it completely
-    // unreachable (no nav link pointed at it either).
+    // Lab Inventory
     Route::get('/lab-inventory', [LabLabInventoryController::class, 'index'])->name('lab-inventory.index');
     Route::put('/lab-inventory/{labInventory}', [LabLabInventoryController::class, 'update'])->name('lab-inventory.update');
 });
