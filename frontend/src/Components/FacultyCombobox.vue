@@ -1,0 +1,99 @@
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+
+type Faculty = { id: number; name: string; email: string; department: string | null };
+
+const props = defineProps<{
+    faculties: Faculty[];
+    modelValue: string | number;
+}>();
+
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
+
+// A faculty's `department` field is stored as one combined string, e.g.
+// "College of Science – Chemistry" — the dropdown shows just the
+// department, not the specific subject/specialization after the dash.
+const generalDepartment = (dept: string) => dept.split(/[–—-]/)[0].trim();
+
+const departments = computed(() =>
+    [...new Set(props.faculties.map(f => f.department).filter((d): d is string => !!d).map(generalDepartment))].sort()
+);
+
+const selectedDepartment = ref('');
+const search = ref('');
+
+// If a faculty is already selected (e.g. auto-filled from an activity/QR
+// scan), preselect their department too so the picker opens already
+// showing the right group instead of looking empty.
+const initialFaculty = props.faculties.find(f => String(f.id) === String(props.modelValue));
+if (initialFaculty?.department) {
+    selectedDepartment.value = generalDepartment(initialFaculty.department);
+}
+
+watch(selectedDepartment, () => {
+    search.value = '';
+    // Changing department clears the pick unless it still belongs to the
+    // newly selected department (covers the preselect-on-mount case above).
+    const current = props.faculties.find(f => String(f.id) === String(props.modelValue));
+    const stillValid = current?.department && generalDepartment(current.department) === selectedDepartment.value;
+    if (!stillValid) emit('update:modelValue', '');
+});
+
+const departmentFaculties = computed(() =>
+    props.faculties.filter(f => f.department && generalDepartment(f.department) === selectedDepartment.value)
+);
+
+const filteredFaculties = computed(() => {
+    const term = search.value.trim().toLowerCase();
+    const list = term
+        ? departmentFaculties.value.filter(f => f.name.toLowerCase().includes(term))
+        : departmentFaculties.value;
+    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+});
+
+const selectedFaculty = computed(() =>
+    props.faculties.find(f => String(f.id) === String(props.modelValue)) ?? null
+);
+
+const select = (f: Faculty) => emit('update:modelValue', String(f.id));
+</script>
+
+<template>
+    <div class="space-y-2">
+        <select
+            v-model="selectedDepartment"
+            class="block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+        >
+            <option value="">Select department...</option>
+            <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
+        </select>
+
+        <template v-if="selectedDepartment">
+            <input
+                type="text"
+                v-model="search"
+                placeholder="Search faculty by name..."
+                autocomplete="off"
+                class="block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+            />
+
+            <p v-if="selectedFaculty" class="text-xs text-green-700">
+                Selected: <span class="font-medium">{{ selectedFaculty.name }}</span>
+            </p>
+
+            <div class="max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+                <button
+                    v-for="f in filteredFaculties"
+                    :key="f.id"
+                    type="button"
+                    @click="select(f)"
+                    class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-green-50"
+                    :class="String(f.id) === String(modelValue) ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'"
+                >
+                    {{ f.name }}
+                </button>
+                <p v-if="filteredFaculties.length === 0" class="px-3 py-3 text-sm text-gray-400">No faculty found.</p>
+            </div>
+        </template>
+    </div>
+</template>

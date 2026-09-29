@@ -1,0 +1,93 @@
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\QrScanController;
+use App\Models\ActivityEquipmentQr;
+use App\Models\Campus;
+use App\Services\NotificationService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class CompleteProfileController extends Controller
+{
+    public function show(): Response|RedirectResponse
+    {
+        $user = auth()->user();
+
+        if ($user->hasCompletedProfile()) {
+            return redirect()->route('dashboard');
+        }
+
+        $campuses = Campus::orderBy('campus_name')->get(['id', 'campus_name']);
+
+        return Inertia::render('Auth/CompleteProfile', [
+            'campuses' => $campuses,
+            'user'     => $user,
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $user = auth()->user();
+
+        $role = $request->input('role', 'student');
+
+        if ($role === 'faculty') {
+            $request->validate([
+                'campus_id'  => 'required|exists:campuses,id',
+                'department' => 'required|string|max:100',
+            ]);
+
+            $user->update([
+                'role'       => 'faculty',
+                'campus_id'  => $request->campus_id,
+                'department' => $request->department,
+                'status'     => 'pending',
+            ]);
+
+            $user->load('campus');
+            NotificationService::facultyRegistered($user);
+
+            // Faculty accounts require admin verification before use — the
+            // registration flow already logged this session in, so log back
+            // out immediately rather than leaving them with live access
+            // while their status says otherwise. They land on the login
+            // screen, which already blocks 'pending' accounts with a clear
+            // message, and the existing approve() flow picks up from there.
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->with('status', 'Your faculty account has been submitted for verification. You\'ll be able to log in once an administrator approves it.');
+        } else {
+            $request->validate([
+                'campus_id'  => 'required|exists:campuses,id',
+                'student_id' => 'required|string|max:50',
+                'course'     => 'required|string|max:100',
+            ]);
+
+            $user->update([
+                'role'       => 'student',
+                'campus_id'  => $request->campus_id,
+                'student_id' => $request->student_id,
+                'course'     => $request->course,
+                'status'     => 'active',
+            ]);
+        }
+
+        // Continue a QR-code scan that brought the user here to register
+        if ($token = session('qr_token')) {
+            $qr = ActivityEquipmentQr::where('token', $token)->first();
+            if ($qr) {
+                return QrScanController::redirectAfterScan($qr, $user->fresh());
+            }
+            session()->forget('qr_token');
+        }
+
+        return redirect()->route('dashboard');
+    }
+}
