@@ -9,8 +9,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // SQLite cannot alter a table that is referenced by a view,
-        // so drop the views that depend on borrowings before changing it.
         DB::statement('DROP VIEW IF EXISTS borrow_requests');
         DB::statement('DROP VIEW IF EXISTS transactions');
 
@@ -30,27 +28,82 @@ return new class extends Migration
             $table->string('claim_code')->nullable()->unique()->after('overdue_flag');
         });
 
-        // Update status column allowed values
-        Schema::table('borrowings', function (Blueprint $table) {
-            $table->enum('status', [
-                'pending_faculty',
-                'pending_lab',
-                'pending_admin',
-                'approved',
-                'borrowed',
-                'returned',
-                'overdue',
-                'cancelled',
-            ])->default('pending_faculty')->change();
-        });
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status TYPE varchar(255)
+                USING status::text
+            ");
 
-        // Re-create views that alias borrowings / borrowing_equipment
-        DB::statement('CREATE VIEW IF NOT EXISTS borrow_requests AS SELECT * FROM borrowings');
-        DB::statement('CREATE VIEW IF NOT EXISTS transactions AS SELECT * FROM borrowing_equipment');
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status SET DEFAULT 'pending_faculty'
+            ");
+
+            DB::statement("
+                ALTER TABLE borrowings
+                ADD CONSTRAINT borrowings_status_check
+                CHECK (status IN (
+                    'pending_faculty',
+                    'pending_lab',
+                    'pending_admin',
+                    'approved',
+                    'borrowed',
+                    'returned',
+                    'overdue',
+                    'cancelled'
+                ))
+            ");
+        } else {
+            Schema::table('borrowings', function (Blueprint $table) {
+                $table->enum('status', [
+                    'pending_faculty',
+                    'pending_lab',
+                    'pending_admin',
+                    'approved',
+                    'borrowed',
+                    'returned',
+                    'overdue',
+                    'cancelled',
+                ])->default('pending_faculty')->change();
+            });
+        }
+
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW transactions AS SELECT * FROM borrowing_equipment');
     }
 
     public function down(): void
     {
+        DB::statement('DROP VIEW IF EXISTS borrow_requests');
+        DB::statement('DROP VIEW IF EXISTS transactions');
+
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE borrowings DROP CONSTRAINT IF EXISTS borrowings_status_check');
+
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status TYPE varchar(255)
+                USING status::text
+            ");
+
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status SET DEFAULT 'pending'
+            ");
+        } else {
+            Schema::table('borrowings', function (Blueprint $table) {
+                $table->enum('status', [
+                    'pending',
+                    'approved',
+                    'borrowed',
+                    'returned',
+                    'overdue',
+                    'cancelled',
+                ])->default('pending')->change();
+            });
+        }
+
         Schema::table('borrowings', function (Blueprint $table) {
             $table->dropUnique(['claim_code']);
             $table->dropColumn([
@@ -64,16 +117,9 @@ return new class extends Migration
                 'admin_approved_at',
                 'claim_code',
             ]);
-
-            $table->enum('status', [
-                'pending',
-                'approved',
-                'borrowed',
-                'returned',
-                'overdue',
-                'cancelled',
-            ])->default('pending')->change();
         });
+
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW transactions AS SELECT * FROM borrowing_equipment');
     }
 };
-

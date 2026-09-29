@@ -9,30 +9,64 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Lab Staff no longer approves/rejects requests — that decision belongs
-        // to Admin alone. Any requests still sitting at pending_lab move on to
-        // pending_admin so they aren't stranded in a status that no longer exists.
-        DB::table('borrowings')->where('status', 'pending_lab')->update(['status' => 'pending_admin']);
+        // Move existing pending_lab requests to pending_admin.
+        DB::table('borrowings')
+            ->where('status', 'pending_lab')
+            ->update(['status' => 'pending_admin']);
 
-        // SQLite cannot alter a table that is referenced by a view,
-        // so drop the views that depend on borrowings before changing it.
+        // Drop views before changing borrowings.
         DB::statement('DROP VIEW IF EXISTS borrow_requests');
         DB::statement('DROP VIEW IF EXISTS transactions');
 
-        Schema::table('borrowings', function (Blueprint $table) {
-            $table->enum('status', [
-                'pending_faculty',
-                'pending_admin',
-                'approved',
-                'borrowed',
-                'returned',
-                'overdue',
-                'cancelled',
-            ])->default('pending_faculty')->change();
-        });
+        if (DB::getDriverName() === 'pgsql') {
+            // Remove the old status constraint.
+            DB::statement(
+                'ALTER TABLE borrowings DROP CONSTRAINT IF EXISTS borrowings_status_check'
+            );
 
-        DB::statement('CREATE VIEW IF NOT EXISTS borrow_requests AS SELECT * FROM borrowings');
-        DB::statement('CREATE VIEW IF NOT EXISTS transactions AS SELECT * FROM borrowing_equipment');
+            // Keep status as varchar instead of PostgreSQL enum.
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status TYPE varchar(255)
+                USING status::text
+            ");
+
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status SET DEFAULT 'pending_faculty'
+            ");
+
+            // Lab approval stage is no longer allowed.
+            DB::statement("
+                ALTER TABLE borrowings
+                ADD CONSTRAINT borrowings_status_check
+                CHECK (status IN (
+                    'pending_faculty',
+                    'pending_admin',
+                    'approved',
+                    'borrowed',
+                    'returned',
+                    'overdue',
+                    'cancelled'
+                ))
+            ");
+        } else {
+            Schema::table('borrowings', function (Blueprint $table) {
+                $table->enum('status', [
+                    'pending_faculty',
+                    'pending_admin',
+                    'approved',
+                    'borrowed',
+                    'returned',
+                    'overdue',
+                    'cancelled',
+                ])->default('pending_faculty')->change();
+            });
+        }
+
+        // Re-create views.
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW transactions AS SELECT * FROM borrowing_equipment');
     }
 
     public function down(): void
@@ -40,20 +74,52 @@ return new class extends Migration
         DB::statement('DROP VIEW IF EXISTS borrow_requests');
         DB::statement('DROP VIEW IF EXISTS transactions');
 
-        Schema::table('borrowings', function (Blueprint $table) {
-            $table->enum('status', [
-                'pending_faculty',
-                'pending_lab',
-                'pending_admin',
-                'approved',
-                'borrowed',
-                'returned',
-                'overdue',
-                'cancelled',
-            ])->default('pending_faculty')->change();
-        });
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement(
+                'ALTER TABLE borrowings DROP CONSTRAINT IF EXISTS borrowings_status_check'
+            );
 
-        DB::statement('CREATE VIEW IF NOT EXISTS borrow_requests AS SELECT * FROM borrowings');
-        DB::statement('CREATE VIEW IF NOT EXISTS transactions AS SELECT * FROM borrowing_equipment');
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status TYPE varchar(255)
+                USING status::text
+            ");
+
+            DB::statement("
+                ALTER TABLE borrowings
+                ALTER COLUMN status SET DEFAULT 'pending_faculty'
+            ");
+
+            DB::statement("
+                ALTER TABLE borrowings
+                ADD CONSTRAINT borrowings_status_check
+                CHECK (status IN (
+                    'pending_faculty',
+                    'pending_lab',
+                    'pending_admin',
+                    'approved',
+                    'borrowed',
+                    'returned',
+                    'overdue',
+                    'cancelled'
+                ))
+            ");
+        } else {
+            Schema::table('borrowings', function (Blueprint $table) {
+                $table->enum('status', [
+                    'pending_faculty',
+                    'pending_lab',
+                    'pending_admin',
+                    'approved',
+                    'borrowed',
+                    'returned',
+                    'overdue',
+                    'cancelled',
+                ])->default('pending_faculty')->change();
+            });
+        }
+
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW transactions AS SELECT * FROM borrowing_equipment');
     }
 };

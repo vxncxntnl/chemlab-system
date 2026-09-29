@@ -17,17 +17,14 @@ return new class extends Migration
             $table->softDeletes();
         });
 
-        // SQLite can't alter a table that a view depends on — the
-        // borrow_requests view aliases borrowings, so it has to be dropped
-        // before the alter and recreated after (same pattern used by the
-        // earlier migrations that touched this table).
+        // Drop the view before altering borrowings.
         DB::statement('DROP VIEW IF EXISTS borrow_requests');
 
         Schema::table('borrowings', function (Blueprint $table) {
             $table->softDeletes();
         });
 
-        DB::statement('CREATE VIEW IF NOT EXISTS borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
     }
 
     public function down(): void
@@ -46,6 +43,6 @@ return new class extends Migration
             $table->dropSoftDeletes();
         });
 
-        DB::statement('CREATE VIEW IF NOT EXISTS borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
     }
 };

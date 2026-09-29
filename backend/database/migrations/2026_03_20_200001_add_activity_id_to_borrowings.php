@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreign('activity_id')->references('id')->on('activities')->onDelete('set null');
         });
 
-        DB::statement('CREATE VIEW IF NOT EXISTS borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
     }
 
     public function down(): void
@@ -30,6 +30,6 @@ return new class extends Migration
             $table->dropColumn('activity_id');
         });
 
-        DB::statement('CREATE VIEW IF NOT EXISTS borrow_requests AS SELECT * FROM borrowings');
+        DB::statement('CREATE VIEW borrow_requests AS SELECT * FROM borrowings');
     }
 };
