@@ -42,18 +42,22 @@ class ReportController extends Controller
     {
         $year = $request->input('year', date('Y'));
 
-        $data = Borrowing::selectRaw('
-                strftime("%m", borrow_date) as month,
+        // PostgreSQL has no strftime() (that's SQLite-only) — EXTRACT() is the
+        // equivalent here. Also note: PostgreSQL treats double-quoted text as
+        // a column/identifier name, not a string literal, so the status
+        // comparisons below must use single quotes.
+        $data = Borrowing::selectRaw("
+                EXTRACT(MONTH FROM borrow_date)::int as month,
                 COUNT(*) as total_transactions,
-                SUM(CASE WHEN status = "returned" THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN status = "overdue" THEN 1 ELSE 0 END) as overdue
-            ')
-            ->whereRaw('strftime("%Y", borrow_date) = ?', [$year])
-            ->groupByRaw('strftime("%m", borrow_date)')
-            ->orderByRaw('strftime("%m", borrow_date)')
+                SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue
+            ")
+            ->whereRaw('EXTRACT(YEAR FROM borrow_date) = ?', [$year])
+            ->groupByRaw('EXTRACT(MONTH FROM borrow_date)')
+            ->orderByRaw('EXTRACT(MONTH FROM borrow_date)')
             ->get();
 
-        $years = Borrowing::selectRaw('DISTINCT strftime("%Y", borrow_date) as year')
+        $years = Borrowing::selectRaw('DISTINCT EXTRACT(YEAR FROM borrow_date)::int as year')
             ->orderBy('year', 'desc')
             ->pluck('year');
 
