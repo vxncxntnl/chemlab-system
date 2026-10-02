@@ -8,7 +8,7 @@ import { ZiggyVue } from 'ziggy-js';
 import Vue3Toastify, { type ToastContainerOptions } from 'vue3-toastify';
 import 'vue3-toastify/dist/index.css';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'ChemLab';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
