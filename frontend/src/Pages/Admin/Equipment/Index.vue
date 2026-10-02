@@ -72,6 +72,16 @@ const doDelete = () => { router.delete(route('admin.equipment.destroy', deleteTa
                     </svg>
                     Add Equipment
                 </Link>
+                <a
+                    :href="route('admin.equipment.report', filters)"
+                    target="_blank"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 shadow-sm hover:bg-gray-50 transition-colors"
+                >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
+                    </svg>
+                    Print Report
+                </a>
             </div>
         </template>
 

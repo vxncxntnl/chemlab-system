@@ -41,6 +41,35 @@ class EquipmentController extends Controller
         ]);
     }
 
+    /**
+     * Printable equipment report for the lab in-charge — same filters as
+     * the list page, but unpaginated (a report should show everything
+     * matching, not just one page of it).
+     */
+    public function report(Request $request)
+    {
+        $query = Equipment::query();
+
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('category', 'like', "%{$request->search}%")
+                    ->orWhere('serial_number', 'like', "%{$request->search}%");
+            });
+        }
+
+        if ($request->category) {
+            $query->where('category', $request->category);
+        }
+
+        $equipment = $query->orderBy('equipment_code')->get();
+
+        return Inertia::render('Admin/Equipment/Report', [
+            'equipment' => $equipment,
+            'filters' => $request->only(['search', 'category']),
+        ]);
+    }
+
     public function create()
     {
         return Inertia::render('Admin/Equipment/Create', [

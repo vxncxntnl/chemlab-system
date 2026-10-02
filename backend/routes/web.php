@@ -150,6 +150,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     Route::resource('categories', CategoryController::class);
 
     // Equipment
+    Route::get('/equipment-report', [EquipmentController::class, 'report'])->name('equipment.report');
     Route::resource('equipment', EquipmentController::class);
 
     // Inventory
