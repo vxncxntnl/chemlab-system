@@ -22,6 +22,16 @@ const facultyDepartments = [
     'Computer Engineering',
 ];
 
+// A student's "Course" is its own field (not Department — that's
+// faculty-only, see CompleteProfileController::store()), grouped here the
+// same way the self-registration page groups them.
+const departmentCourses: Record<string, string[]> = {
+    'Health Sciences': ['Medical Technology (MedTech)', 'Pharmacy', 'Nursing'],
+    'Criminal Justice Education': ['Criminology'],
+    'Arts and Sciences': ['Psychology'],
+    'Engineering': ['Civil Engineering', 'Electrical Engineering', 'Mechanical Engineering', 'Computer Engineering'],
+};
+
 const form = useForm({
     name: '',
     email: '',
@@ -29,6 +39,7 @@ const form = useForm({
     password_confirmation: '',
     role: 'student',
     department: '',
+    course: '',
     student_id: '',
     employee_id: '',
     contact_number: '',
@@ -109,7 +120,22 @@ const submit = () => {
                         <InputError :message="form.errors.role" class="mt-2" />
                     </div>
 
-                    <div>
+                    <div v-if="form.role === 'student'">
+                        <InputLabel for="course" value="Course / Program" />
+                        <select
+                            id="course"
+                            v-model="form.course"
+                            class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+                        >
+                            <option value="" disabled>Select course</option>
+                            <optgroup v-for="(courseList, dept) in departmentCourses" :key="dept" :label="dept">
+                                <option v-for="course in courseList" :key="course" :value="course">{{ course }}</option>
+                            </optgroup>
+                        </select>
+                        <InputError :message="form.errors.course" class="mt-2" />
+                    </div>
+
+                    <div v-else>
                         <InputLabel for="department" value="Department" />
                         <select
                             v-if="form.role === 'faculty'"
