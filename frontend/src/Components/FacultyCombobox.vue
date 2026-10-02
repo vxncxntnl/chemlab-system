@@ -30,6 +30,10 @@ if (initialFaculty?.department) {
     selectedDepartment.value = generalDepartment(initialFaculty.department);
 }
 
+// Start collapsed if a faculty is already picked (e.g. preselected from a
+// QR scan), otherwise open so the list is immediately usable.
+const showList = ref(!initialFaculty);
+
 watch(selectedDepartment, () => {
     search.value = '';
     // Changing department clears the pick unless it still belongs to the
@@ -37,6 +41,7 @@ watch(selectedDepartment, () => {
     const current = props.faculties.find(f => String(f.id) === String(props.modelValue));
     const stillValid = current?.department && generalDepartment(current.department) === selectedDepartment.value;
     if (!stillValid) emit('update:modelValue', '');
+    showList.value = true;
 });
 
 const departmentFaculties = computed(() =>
@@ -55,7 +60,15 @@ const selectedFaculty = computed(() =>
     props.faculties.find(f => String(f.id) === String(props.modelValue)) ?? null
 );
 
-const select = (f: Faculty) => emit('update:modelValue', String(f.id));
+const select = (f: Faculty) => {
+    emit('update:modelValue', String(f.id));
+    showList.value = false;
+};
+
+const changeSelection = () => {
+    showList.value = true;
+    search.value = '';
+};
 </script>
 
 <template>
@@ -69,31 +82,41 @@ const select = (f: Faculty) => emit('update:modelValue', String(f.id));
         </select>
 
         <template v-if="selectedDepartment">
-            <input
-                type="text"
-                v-model="search"
-                placeholder="Search faculty by name..."
-                autocomplete="off"
-                class="block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
-            />
+            <template v-if="showList">
+                <input
+                    type="text"
+                    v-model="search"
+                    placeholder="Search faculty by name..."
+                    autocomplete="off"
+                    class="block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+                />
 
-            <p v-if="selectedFaculty" class="text-xs text-green-700">
-                Selected: <span class="font-medium">{{ selectedFaculty.name }}</span>
-            </p>
+                <div class="max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+                    <button
+                        v-for="f in filteredFaculties"
+                        :key="f.id"
+                        type="button"
+                        @click="select(f)"
+                        class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-green-50"
+                        :class="String(f.id) === String(modelValue) ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'"
+                    >
+                        {{ f.name }}
+                    </button>
+                    <p v-if="filteredFaculties.length === 0" class="px-3 py-3 text-sm text-gray-400">No faculty found.</p>
+                </div>
+            </template>
 
-            <div class="max-h-56 overflow-y-auto rounded-lg border border-gray-200 bg-white">
-                <button
-                    v-for="f in filteredFaculties"
-                    :key="f.id"
-                    type="button"
-                    @click="select(f)"
-                    class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-green-50"
-                    :class="String(f.id) === String(modelValue) ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'"
-                >
-                    {{ f.name }}
-                </button>
-                <p v-if="filteredFaculties.length === 0" class="px-3 py-3 text-sm text-gray-400">No faculty found.</p>
-            </div>
+            <button
+                v-else-if="selectedFaculty"
+                type="button"
+                @click="changeSelection"
+                class="flex w-full items-center justify-between rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-left text-sm hover:bg-green-100"
+            >
+                <span class="text-green-700">
+                    Selected: <span class="font-medium">{{ selectedFaculty.name }}</span>
+                </span>
+                <span class="text-xs font-medium text-green-700">Change</span>
+            </button>
         </template>
     </div>
 </template>
