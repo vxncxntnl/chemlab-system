@@ -113,36 +113,42 @@ const borrowingChartOptions = {
                 :value="stats.total_users"
                 color="green"
                 icon="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                :href="route('admin.users.index')"
             />
             <StatsCard
                 title="Total Equipment"
                 :value="stats.total_equipment"
                 color="blue"
                 icon="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"
+                :href="route('admin.equipment.index')"
             />
             <StatsCard
                 title="Pending Requests"
                 :value="stats.pending_requests"
                 color="yellow"
                 icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                :href="route('admin.borrowings.index', { status: ['pending_faculty', 'pending_admin'] })"
             />
             <StatsCard
                 title="Active Borrowings"
                 :value="stats.active_borrowings"
                 color="green"
                 icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                :href="route('admin.borrowings.index', { status: ['approved', 'borrowed'] })"
             />
             <StatsCard
                 title="Overdue Items"
                 :value="stats.overdue_borrowings"
                 color="red"
                 icon="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                :href="route('admin.borrowings.index', { status: 'overdue' })"
             />
             <StatsCard
                 title="Utilization Rate"
                 :value="`${inventoryStats.utilization_rate}%`"
                 color="green"
                 icon="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                :href="route('admin.inventory.index')"
             />
         </div>
 

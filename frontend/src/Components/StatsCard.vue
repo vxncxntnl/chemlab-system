@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Link } from '@inertiajs/vue3';
 
 const props = withDefaults(
     defineProps<{
@@ -8,6 +9,7 @@ const props = withDefaults(
         icon?: string;
         trend?: number;
         color?: 'green' | 'red' | 'yellow' | 'blue' | 'gray' | 'purple';
+        href?: string;
     }>(),
     { color: 'green' }
 );
@@ -26,7 +28,15 @@ const colorMap = computed(() => {
 </script>
 
 <template>
-    <div :class="['relative overflow-hidden rounded-xl bg-white border shadow-sm p-5', colorMap.border]">
+    <component
+        :is="href ? Link : 'div'"
+        :href="href"
+        :class="[
+            'relative overflow-hidden rounded-xl bg-white border shadow-sm p-5',
+            colorMap.border,
+            href ? 'block transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer' : ''
+        ]"
+    >
         <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider truncate">{{ title }}</p>
@@ -45,5 +55,5 @@ const colorMap = computed(() => {
                 </svg>
             </div>
         </div>
-    </div>
+    </component>
 </template>

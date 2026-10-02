@@ -22,7 +22,10 @@ class BorrowingController extends Controller
         $query = Borrowing::with(['user', 'approver', 'equipment']);
 
         if ($request->status) {
-            $query->where('status', $request->status);
+            // Accepts either a single status or an array of statuses (e.g.
+            // the dashboard's "Pending Requests" card links here with both
+            // pending_faculty and pending_admin, matching how it counts them).
+            $query->whereIn('status', (array) $request->status);
         }
 
         if ($request->search) {
