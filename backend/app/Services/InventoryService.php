@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Equipment;
 use App\Models\EquipmentInventory;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class InventoryService
 {
@@ -50,17 +51,28 @@ class InventoryService
 
     public function getInventoryStats(): array
     {
-        $totalEquipment = Equipment::count();
-        $totalInventory = EquipmentInventory::sum('total_quantity');
-        $availableInventory = EquipmentInventory::sum('available_quantity');
-        $lowStockCount = EquipmentInventory::whereColumn('available_quantity', '<=', 'reorder_level')->count();
+        // Combines what used to be 4 separate queries (across 2 tables) into
+        // a single round trip. Equipment uses soft deletes, so that subquery
+        // excludes deleted_at the same way Equipment::count() already did;
+        // equipment_inventory has no soft deletes, so none is needed there.
+        $row = (array) DB::selectOne("
+            SELECT
+                (SELECT COUNT(*) FROM equipment WHERE deleted_at IS NULL) AS total_equipment,
+                COALESCE(SUM(total_quantity), 0) AS total_inventory,
+                COALESCE(SUM(available_quantity), 0) AS available_inventory,
+                COUNT(CASE WHEN available_quantity <= reorder_level THEN 1 END) AS low_stock_count
+            FROM equipment_inventory
+        ");
+
+        $totalInventory = (int) $row['total_inventory'];
+        $availableInventory = (int) $row['available_inventory'];
 
         return [
-            'total_equipment' => $totalEquipment,
+            'total_equipment' => (int) $row['total_equipment'],
             'total_inventory' => $totalInventory,
             'available_inventory' => $availableInventory,
             'borrowed_inventory' => $totalInventory - $availableInventory,
-            'low_stock_count' => $lowStockCount,
+            'low_stock_count' => (int) $row['low_stock_count'],
             'utilization_rate' => $totalInventory > 0
                 ? round((($totalInventory - $availableInventory) / $totalInventory) * 100, 2)
                 : 0,

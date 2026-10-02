@@ -6,6 +6,27 @@ server {
 
     client_max_body_size 20M;
 
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/xml+rss image/svg+xml;
+
+    # Vite-built assets are content-hashed (a changed file gets a new
+    # filename), so these can be cached by the browser indefinitely.
+    # (^~ makes this take priority over the extension-based regex location
+    # below, which would otherwise win and apply the shorter cache instead.)
+    location ^~ /build/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Other static files (logo, favicon, etc.) aren't hashed, so a shorter
+    # cache is used instead of "immutable" in case one is ever replaced.
+    location ~* \.(?:css|js|jpg|jpeg|png|gif|svg|ico|webp|woff|woff2)$ {
+        add_header Cache-Control "public, max-age=604800";
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }

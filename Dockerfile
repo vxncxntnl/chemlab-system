@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     gettext-base \
     && docker-php-ext-install pdo_pgsql \
+    && docker-php-ext-enable opcache \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -68,6 +69,7 @@ RUN php artisan storage:link || true
 # Laravel's development-only "artisan serve" command)
 COPY docker/nginx.conf.template /etc/nginx/nginx-site.conf.template
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 RUN rm -f /etc/nginx/sites-enabled/default
 
 EXPOSE 10000
