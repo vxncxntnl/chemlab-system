@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     gettext-base \
     && docker-php-ext-install pdo_pgsql \
-    && docker-php-ext-enable opcache \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
