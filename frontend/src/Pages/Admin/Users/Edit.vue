@@ -7,14 +7,19 @@ import TextInput from '@/Components/TextInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
-// Same department list used on the faculty self-registration page
+// Same list of programs shown to students on the self-registration page
 // (Complete Your Profile), so an admin-edited faculty account is
 // assigned a department from the same set.
 const facultyDepartments = [
-    'Health Sciences',
-    'Criminal Justice Education',
-    'Arts and Sciences',
-    'Engineering',
+    'Medical Technology (MedTech)',
+    'Pharmacy',
+    'Criminology',
+    'Nursing',
+    'Psychology',
+    'Civil Engineering',
+    'Electrical Engineering',
+    'Mechanical Engineering',
+    'Computer Engineering',
 ];
 
 const props = defineProps<{
