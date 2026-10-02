@@ -31,27 +31,27 @@ const availabilityColor = (item: any) => {
         </div>
 
         <!-- Thumbnail -->
-        <div class="h-24 bg-green-50 flex items-center justify-center border-b border-green-100 overflow-hidden">
+        <div class="h-32 sm:h-36 bg-green-50 flex items-center justify-center border-b border-green-100 overflow-hidden">
             <img
                 v-if="item.equipment?.image_path"
                 :src="`/storage/${item.equipment.image_path}`"
                 :alt="item.equipment.name"
-                class="h-full w-full object-contain p-1.5 group-hover:scale-105 transition-transform duration-300"
+                class="h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
             />
-            <svg v-else class="h-8 w-8 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+            <svg v-else class="h-10 w-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
             </svg>
         </div>
 
         <!-- Essentials only: name, category, quick availability -->
-        <div class="flex flex-col gap-1 p-3">
-            <span class="self-start text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full border border-green-100">
+        <div class="flex flex-col gap-1.5 p-4">
+            <span class="self-start text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-full border border-green-100">
                 {{ item.equipment?.category || 'General' }}
             </span>
-            <h3 class="text-sm font-semibold text-gray-900 leading-snug truncate" :title="item.equipment?.name">
+            <h3 class="text-base font-semibold text-gray-900 leading-snug truncate" :title="item.equipment?.name">
                 {{ item.equipment?.name }}
             </h3>
-            <p :class="['text-xs font-medium', availabilityColor(item)]">
+            <p :class="['text-sm font-medium', availabilityColor(item)]">
                 {{ item.available_quantity === 0 ? 'Unavailable' : `${item.available_quantity} / ${item.total_quantity} available` }}
             </p>
         </div>

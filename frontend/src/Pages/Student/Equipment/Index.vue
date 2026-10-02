@@ -148,7 +148,7 @@ onBeforeUnmount(() => { if (refreshInterval) clearInterval(refreshInterval); });
         </div>
 
         <!-- Equipment Grid (compact — click a card to view full details) -->
-        <div v-if="inventory.data.length > 0" class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div v-if="inventory.data.length > 0" class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             <EquipmentBrowseCard
                 v-for="item in inventory.data"
                 :key="item.id"
