@@ -1,10 +1,13 @@
-﻿FROM php:8.5-cli
+﻿FROM php:8.5-fpm
 
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
     curl \
     libpq-dev \
+    nginx \
+    supervisor \
+    gettext-base \
     && docker-php-ext-install pdo_pgsql \
     && rm -rf /var/lib/apt/lists/*
 
@@ -36,7 +39,8 @@ RUN mkdir -p \
     backend/resources/views \
     && chmod -R 775 backend/bootstrap/cache \
     && chmod -R 775 backend/storage \
-    && chmod -R 775 backend/resources/views
+    && chmod -R 775 backend/resources/views \
+    && chown -R www-data:www-data backend/bootstrap/cache backend/storage
 
 # Discover Laravel packages
 RUN cd backend && php artisan package:discover --ansi
@@ -60,7 +64,14 @@ WORKDIR /var/www/backend
 # Create storage link
 RUN php artisan storage:link || true
 
+# Nginx + Supervisor configuration (serves the app via php-fpm instead of
+# Laravel's development-only "artisan serve" command)
+COPY docker/nginx.conf.template /etc/nginx/nginx-site.conf.template
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN rm -f /etc/nginx/sites-enabled/default
+
 EXPOSE 10000
 
-# Start Laravel
-CMD ["sh", "-c", "php artisan migrate --force && php artisan optimize && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}"]
+# Start Laravel: run migrations/cache warmup, render the nginx config for the
+# port Render assigns, then run php-fpm and nginx under supervisord
+CMD ["sh", "-c", "php artisan migrate --force && php artisan optimize && PORT=${PORT:-10000} envsubst '${PORT}' < /etc/nginx/nginx-site.conf.template > /etc/nginx/sites-enabled/default.conf && exec supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
