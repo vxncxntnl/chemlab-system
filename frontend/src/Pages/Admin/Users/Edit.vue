@@ -7,6 +7,16 @@ import TextInput from '@/Components/TextInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
+// Same department list used on the faculty self-registration page
+// (Complete Your Profile), so an admin-edited faculty account is
+// assigned a department from the same set.
+const facultyDepartments = [
+    'Health Sciences',
+    'Criminal Justice Education',
+    'Arts and Sciences',
+    'Engineering',
+];
+
 const props = defineProps<{
     user: {
         id: number;
@@ -107,7 +117,17 @@ const submit = () => {
 
                     <div>
                         <InputLabel for="department" value="Department" />
+                        <select
+                            v-if="form.role === 'faculty'"
+                            id="department"
+                            v-model="form.department"
+                            class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+                        >
+                            <option value="" disabled>Select department</option>
+                            <option v-for="dept in facultyDepartments" :key="dept" :value="dept">{{ dept }}</option>
+                        </select>
                         <TextInput
+                            v-else
                             id="department"
                             v-model="form.department"
                             type="text"
