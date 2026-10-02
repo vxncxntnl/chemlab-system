@@ -174,7 +174,7 @@ onBeforeUnmount(() => { if (refreshInterval) clearInterval(refreshInterval); });
         />
 
         <!-- Pagination -->
-        <div v-if="inventory.last_page > 1" class="mt-6 flex items-center justify-center gap-1">
+        <div v-if="inventory.last_page > 1" class="mt-6 flex flex-wrap items-center justify-center gap-1">
             <Link
                 v-for="link in inventory.links"
                 :key="link.label"

@@ -297,7 +297,7 @@ class BorrowingController extends Controller
             });
         }
 
-        $inventory = $query->paginate(12);
+        $inventory = $query->paginate(15);
         $campuses = Campus::all();
         $categories = Equipment::distinct()->pluck('category')->filter();
 

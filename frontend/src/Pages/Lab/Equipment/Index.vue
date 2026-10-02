@@ -2,7 +2,7 @@
 import LabLayout from '@/Layouts/LabLayout.vue';
 import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
-import { router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -139,7 +139,7 @@ const applyFilters = () => {
 
         <!-- Pagination -->
         <div v-if="props.inventory.last_page > 1" class="mt-6 flex justify-center">
-            <nav class="flex space-x-2">
+            <nav class="flex flex-wrap justify-center gap-2">
                 <Link
                     v-for="link in props.inventory.links"
                     :key="link.label"
