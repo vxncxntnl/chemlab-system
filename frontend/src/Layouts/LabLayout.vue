@@ -105,9 +105,9 @@ const currentSection = computed(() => navigation.find(item => isActive(item.href
         </div>
 
         <!-- Mobile sidebar drawer -->
-        <div v-if="sidebarOpen" class="relative z-40 md:hidden">
+        <div v-if="sidebarOpen" class="relative z-[60] md:hidden">
             <div class="fixed inset-0 bg-black/60" @click="sidebarOpen = false"></div>
-            <div class="fixed inset-0 z-40 flex">
+            <div class="fixed inset-0 z-[60] flex">
                 <div class="relative flex w-full max-w-xs flex-1 flex-col bg-green-950 pt-5 pb-4">
                     <div class="absolute top-0 right-0 -mr-12 pt-2">
                         <button @click="sidebarOpen = false" class="ml-1 flex h-10 w-10 items-center justify-center rounded-full">
