@@ -50,7 +50,17 @@ class PasswordResetLinkController extends Controller
                 'expires_at' => now()->addMinutes(10),
             ]);
 
-            Mail::to($request->email)->send(new PasswordResetCodeMail($code));
+            // If the mail server is slow/unreachable, this now fails fast
+            // (config/mail.php's 10s timeout) instead of hanging — but
+            // still shouldn't break this page for the user, so a failure
+            // here is logged and swallowed rather than shown as an error.
+            // The same generic "check your email" response goes out either
+            // way, consistent with not revealing whether the account exists.
+            try {
+                Mail::to($request->email)->send(new PasswordResetCodeMail($code));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return redirect()->route('password.verify-code', ['email' => $request->email])

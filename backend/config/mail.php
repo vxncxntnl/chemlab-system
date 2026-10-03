@@ -45,7 +45,12 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // Without a limit, a slow/stuck connection to the mail server
+            // hangs the whole request until the webserver itself gives up
+            // (nginx's own timeout) and shows a raw 504 error page instead
+            // of a normal response. 10 seconds is enough for a real SMTP
+            // conversation to complete, short enough to fail fast otherwise.
+            'timeout' => env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
