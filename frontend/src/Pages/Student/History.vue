@@ -1,21 +1,15 @@
 <script setup lang="ts">
 import UserLayout from '@/Layouts/UserLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
-import Badge from '@/Components/Badge.vue';
-import { Link } from '@inertiajs/vue3';
 
 defineProps<{
-    borrowings: {
+    logs: {
         data: Array<{
             id: number;
-            borrow_date: string;
-            return_date: string;
-            actual_return_date: string;
-            status: string;
-            equipment: Array<{
-                id: number;
-                name: string;
-            }>;
+            action: string;
+            table_affected: string | null;
+            record_id: number | null;
+            created_at: string;
         }>;
         current_page: number;
         last_page: number;
@@ -26,63 +20,54 @@ defineProps<{
 }>();
 
 const columns = [
-    { key: 'equipment', label: 'Equipment' },
-    { key: 'borrow_date', label: 'Borrow Date' },
-    { key: 'actual_return_date', label: 'Return Date' },
+    { key: 'created_at', label: 'Date/Time' },
+    { key: 'action', label: 'Activity' },
+    { key: 'table_affected', label: 'Related To' },
 ];
 </script>
 
 <template>
     <UserLayout>
         <template #header>
-            <h1 class="text-xl font-semibold text-gray-800">Borrowing History</h1>
+            <h1 class="text-xl font-semibold text-gray-800">My History</h1>
         </template>
 
         <div class="space-y-6">
             <div class="rounded-xl border border-gray-100 bg-white shadow-sm p-4">
                 <p class="text-sm text-gray-500">
-                    View your completed borrowing transactions. All items shown here have been returned.
+                    A record of your activity — requests submitted, approvals, rejections, equipment releases, and returns.
                 </p>
             </div>
 
-            <DataTable :columns="columns" :data="borrowings.data" :pagination="borrowings">
-                <template #cell-equipment="{ row }">
-                    <div>
-                        <p class="text-sm font-medium text-gray-900">
-                            {{ row.equipment?.map((e: any) => e.name).join(', ') || 'Equipment' }}
-                        </p>
-                        <p class="text-xs text-gray-500">
-                            {{ row.equipment?.length || 0 }} item(s)
-                        </p>
+            <DataTable :columns="columns" :data="logs.data" :pagination="logs">
+                <template #cell-created_at="{ value }">
+                    <div class="text-sm">
+                        <div class="text-gray-900">{{ new Date(value).toLocaleDateString() }}</div>
+                        <div class="text-gray-500">{{ new Date(value).toLocaleTimeString() }}</div>
                     </div>
                 </template>
-                <template #cell-borrow_date="{ value }">
-                    {{ new Date(value).toLocaleDateString() }}
+                <template #cell-action="{ value }">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        :class="{
+                            'bg-green-100 text-green-800': value.toLowerCase().includes('created') || value.toLowerCase().includes('approved') || value.toLowerCase().includes('released') || value.toLowerCase().includes('returned'),
+                            'bg-red-100 text-red-800': value.toLowerCase().includes('rejected') || value.toLowerCase().includes('cancelled'),
+                            'bg-gray-100 text-gray-800': !/(created|approved|released|returned|rejected|cancelled)/i.test(value),
+                        }"
+                    >
+                        {{ value }}
+                    </span>
                 </template>
-                <template #cell-actual_return_date="{ value }">
-                    {{ new Date(value).toLocaleDateString() }}
-                </template>
-                <template #actions="{ row }">
-                    <Link :href="route('student.borrowings.show', row.id)" class="text-green-600 hover:text-green-900">
-                        View Details
-                    </Link>
+                <template #cell-table_affected="{ value }">
+                    <span class="text-gray-600 capitalize">{{ value?.replace(/_/g, ' ') || '—' }}</span>
                 </template>
             </DataTable>
 
-            <div v-if="borrowings.data.length === 0" class="text-center py-12">
+            <div v-if="logs.data.length === 0" class="text-center py-12">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No borrowing history</h3>
-                <p class="mt-1 text-sm text-gray-500">You haven't completed any borrowing transactions yet.</p>
-                <div class="mt-6">
-                    <Link
-                        :href="route('student.borrowings.create')"
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
-                    >
-                        Make Your First Request
-                    </Link>
-                </div>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No activity yet</h3>
+                <p class="mt-1 text-sm text-gray-500">Your history will appear here once you submit a borrowing request.</p>
             </div>
         </div>
     </UserLayout>

@@ -10,7 +10,7 @@ const props = defineProps<{
             id: number;
             user_id: number;
             action: string;
-            table_name: string | null;
+            table_affected: string | null;
             record_id: number | null;
             created_at: string;
             user: {
@@ -41,7 +41,7 @@ const columns = [
     { key: 'created_at', label: 'Date/Time' },
     { key: 'user', label: 'User' },
     { key: 'action', label: 'Action' },
-    { key: 'table_name', label: 'Table' },
+    { key: 'table_affected', label: 'Table' },
     { key: 'record_id', label: 'Record ID' },
 ];
 
@@ -135,7 +135,7 @@ const clearFilters = () => {
                         {{ value }}
                     </span>
                 </template>
-                <template #cell-table_name="{ value }">
+                <template #cell-table_affected="{ value }">
                     <span class="text-gray-600">{{ value || '-' }}</span>
                 </template>
                 <template #cell-record_id="{ value }">

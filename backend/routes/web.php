@@ -110,6 +110,9 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
     Route::post('/borrowings/{borrowing}/release', [LabBorrowingController::class, 'release'])->name('borrowings.release');
     Route::post('/borrowings/{borrowing}/return', [LabBorrowingController::class, 'return'])->name('borrowings.return');
 
+    // Activity history — this lab staff member's own actions
+    Route::get('/history', [LabBorrowingController::class, 'history'])->name('history');
+
     // Damage reports within assigned campus
     Route::get('/damage-reports', [LabDamageReportController::class, 'index'])->name('damage-reports.index');
     Route::get('/damage-reports/{damageReport}', [LabDamageReportController::class, 'show'])->name('damage-reports.show');

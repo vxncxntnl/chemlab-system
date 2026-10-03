@@ -323,14 +323,16 @@ class BorrowingController extends Controller
 
     public function history()
     {
-        $borrowings = Borrowing::with('equipment')
-            ->where('user_id', auth()->id())
-            ->where('status', 'returned')
-            ->orderBy('actual_return_date', 'desc')
-            ->paginate(10);
+        // The full activity log for this student's own account — not just
+        // returned items, every step (submitted, approved, rejected,
+        // released, returned) that the existing AuditLog system already
+        // records throughout the borrowing lifecycle.
+        $logs = AuditLog::where('user_id', auth()->id())
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
 
         return Inertia::render('Student/History', [
-            'borrowings' => $borrowings,
+            'logs' => $logs,
         ]);
     }
 }

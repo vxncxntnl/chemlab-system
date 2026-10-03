@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Borrowing;
 use App\Models\Campus;
 use App\Models\DamageReport;
@@ -284,14 +285,15 @@ class BorrowingController extends Controller
 
     public function history()
     {
-        $borrowings = Borrowing::with('equipment')
-            ->where('user_id', auth()->id())
-            ->where('status', 'returned')
-            ->orderBy('actual_return_date', 'desc')
-            ->paginate(10);
+        // The full activity log for this faculty's own account — both their
+        // own borrow requests and their approve/reject actions on others',
+        // using the existing AuditLog system rather than a separate query.
+        $logs = AuditLog::where('user_id', auth()->id())
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
 
         return Inertia::render('Faculty/History', [
-            'borrowings' => $borrowings,
+            'logs' => $logs,
         ]);
     }
 }

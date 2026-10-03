@@ -6,6 +6,7 @@ use App\Exceptions\DuplicateSubmissionException;
 use App\Exceptions\InsufficientInventoryException;
 use App\Exceptions\InvalidBorrowingStateException;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Borrowing;
 use App\Models\Campus;
 use App\Services\BorrowingService;
@@ -217,6 +218,21 @@ class BorrowingController extends Controller
         NotificationService::borrowingReturned($borrowing);
 
         return back()->with('success', 'Equipment returned successfully.');
+    }
+
+    public function history()
+    {
+        // The full activity log for this lab staff member's own account —
+        // equipment releases, returns, damage report assessments, inventory
+        // changes, etc. — using the existing AuditLog system rather than a
+        // separate query.
+        $logs = AuditLog::where('user_id', auth()->id())
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
+
+        return Inertia::render('Lab/History', [
+            'logs' => $logs,
+        ]);
     }
 }
 
