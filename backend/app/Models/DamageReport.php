@@ -17,6 +17,7 @@ class DamageReport extends Model
         'equipment_inventory_id',
         'reported_by',
         'description',
+        'photo_path',
         'liable_party',
         'liable_reason',
         'status',

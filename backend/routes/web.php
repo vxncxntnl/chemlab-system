@@ -114,6 +114,7 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
     Route::get('/damage-reports', [LabDamageReportController::class, 'index'])->name('damage-reports.index');
     Route::get('/damage-reports/{damageReport}', [LabDamageReportController::class, 'show'])->name('damage-reports.show');
     Route::get('/damage-reports/{damageReport}/print', [LabDamageReportController::class, 'print'])->name('damage-reports.print');
+    Route::get('/damage-reports/{damageReport}/photo', [LabDamageReportController::class, 'photo'])->name('damage-reports.photo');
     Route::post('/damage-reports/{damageReport}/assess', [LabDamageReportController::class, 'assess'])->name('damage-reports.assess');
     Route::post('/damage-reports/{damageReport}/resolve', [LabDamageReportController::class, 'resolve'])->name('damage-reports.resolve');
 
@@ -170,6 +171,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     Route::get('/damage-reports', [DamageReportController::class, 'index'])->name('damage-reports.index');
     Route::get('/damage-reports/{damageReport}', [DamageReportController::class, 'show'])->name('damage-reports.show');
     Route::get('/damage-reports/{damageReport}/print', [DamageReportController::class, 'print'])->name('damage-reports.print');
+    Route::get('/damage-reports/{damageReport}/photo', [DamageReportController::class, 'photo'])->name('damage-reports.photo');
     Route::post('/damage-reports/{damageReport}/assess', [DamageReportController::class, 'assess'])->name('damage-reports.assess');
     Route::post('/damage-reports/{damageReport}/resolve', [DamageReportController::class, 'resolve'])->name('damage-reports.resolve');
 

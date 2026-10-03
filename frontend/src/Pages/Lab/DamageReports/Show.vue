@@ -4,7 +4,10 @@ import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import BackButton from '@/Components/BackButton.vue';
-import { Link, router } from '@inertiajs/vue3';
+import InputLabel from '@/Components/InputLabel.vue';
+import InputError from '@/Components/InputError.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -20,9 +23,36 @@ const getStatusBadge = (status: string) => {
     return variants[status] || 'default';
 };
 
-const showAssessModal = ref(false);
+const showAssessForm = ref(false);
 const showResolveModal = ref(false);
-const doAssess = () => { router.post(route('lab.damage-reports.assess', props.report.id)); showAssessModal.value = false; };
+
+const assessForm = useForm({
+    photo: null as File | null,
+});
+
+const photoPreview = ref<string | null>(null);
+const handlePhotoChange = (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+        assessForm.photo = file;
+        photoPreview.value = URL.createObjectURL(file);
+    }
+};
+
+const cancelAssess = () => {
+    showAssessForm.value = false;
+    assessForm.reset();
+    assessForm.clearErrors();
+    photoPreview.value = null;
+};
+
+const submitAssess = () => {
+    assessForm.post(route('lab.damage-reports.assess', props.report.id), {
+        forceFormData: true,
+        onSuccess: cancelAssess,
+    });
+};
+
 const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.report.id)); showResolveModal.value = false; };
 </script>
 
@@ -75,6 +105,18 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         <dt class="text-sm font-medium text-gray-500">Damage Description</dt>
                         <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ report.description }}</dd>
                     </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-sm font-medium text-gray-500">Damage Photo</dt>
+                        <dd class="mt-1">
+                            <img
+                                v-if="report.photo_path"
+                                :src="route('lab.damage-reports.photo', report.id)"
+                                alt="Damage photo"
+                                class="w-full max-w-xs rounded-lg border border-gray-200 shadow-sm"
+                            />
+                            <p v-else class="text-sm text-gray-500">No damage photo attached.</p>
+                        </dd>
+                    </div>
                     <div v-if="report.liable_party">
                         <dt class="text-sm font-medium text-gray-500">Liable Party</dt>
                         <dd class="mt-1 text-sm font-semibold" :class="{
@@ -95,8 +137,8 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
             <Card title="Actions">
                 <div class="flex flex-wrap gap-3">
                     <button
-                        v-if="report.status === 'pending'"
-                        @click="showAssessModal = true"
+                        v-if="report.status === 'pending' && !showAssessForm"
+                        @click="showAssessForm = true"
                         class="inline-flex items-center px-4 py-2 rounded-lg bg-green-600 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
                     >
                         Assess Damage
@@ -116,9 +158,30 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         Print Incident Report
                     </Link>
                 </div>
+
+                <form v-if="showAssessForm" @submit.prevent="submitAssess" class="mt-4 border-t border-gray-100 pt-4 space-y-4">
+                    <div>
+                        <InputLabel for="photo" value="Damage Photo (Optional)" />
+                        <input
+                            id="photo"
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
+                            @change="handlePhotoChange"
+                        />
+                        <p class="mt-1 text-xs text-gray-500">Maximum size: 10 MB. Accepted formats: JPG, JPEG, PNG, WebP.</p>
+                        <InputError :message="assessForm.errors.photo" class="mt-2" />
+                        <img v-if="photoPreview" :src="photoPreview" alt="Preview" class="mt-2 h-32 w-32 object-cover rounded-lg" />
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" @click="cancelAssess" class="text-sm text-gray-600 hover:text-gray-900">
+                            Cancel
+                        </button>
+                        <PrimaryButton :disabled="assessForm.processing">Confirm Assessment</PrimaryButton>
+                    </div>
+                </form>
             </Card>
         </div>
-        <ConfirmModal :show="showAssessModal" title="Assess Damage" message="Mark this damage report as assessed?" confirmLabel="Yes, Assess" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doAssess" @cancelled="showAssessModal = false" />
         <ConfirmModal :show="showResolveModal" title="Resolve Report" message="Mark this damage report as resolved?" confirmLabel="Yes, Resolve" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doResolve" @cancelled="showResolveModal = false" />
     </LabLayout>
 </template>

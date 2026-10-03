@@ -101,6 +101,18 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                         <dt class="text-sm font-medium text-gray-500">Damage Description</dt>
                         <dd class="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{{ report.description }}</dd>
                     </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-sm font-medium text-gray-500">Damage Photo</dt>
+                        <dd class="mt-1">
+                            <img
+                                v-if="(report as any).photo_path"
+                                :src="route('admin.damage-reports.photo', report.id)"
+                                alt="Damage photo"
+                                class="w-full max-w-xs rounded-lg border border-gray-200 shadow-sm"
+                            />
+                            <p v-else class="text-sm text-gray-500">No damage photo attached.</p>
+                        </dd>
+                    </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Date Reported</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ new Date(report.created_at).toLocaleString() }}</dd>

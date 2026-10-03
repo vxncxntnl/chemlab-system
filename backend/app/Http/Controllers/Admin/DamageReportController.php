@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\EquipmentInventory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class DamageReportController extends Controller
@@ -71,6 +72,19 @@ class DamageReportController extends Controller
         AuditLog::log(auth()->id(), 'Resolved Damage Report', 'damage_reports', $damageReport->id);
 
         return back()->with('success', 'Damage report resolved — equipment marked available again.');
+    }
+
+    /**
+     * Streams the damage photo to an authenticated admin only — never a
+     * public URL, since the photo may show a student's borrowing context.
+     */
+    public function photo(DamageReport $damageReport)
+    {
+        if (!$damageReport->photo_path || !Storage::disk('local')->exists($damageReport->photo_path)) {
+            abort(404);
+        }
+
+        return Storage::disk('local')->response($damageReport->photo_path);
     }
 
     public function print(DamageReport $damageReport)

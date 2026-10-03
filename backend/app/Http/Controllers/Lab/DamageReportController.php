@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\EquipmentInventory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class DamageReportController extends Controller
@@ -67,7 +68,27 @@ class DamageReportController extends Controller
     {
         $this->abortUnlessOwnCampus($damageReport);
 
-        $damageReport->update(['status' => 'assessed']);
+        // mimes: checks the file's actual content (magic bytes), not the
+        // extension or the browser-supplied Content-Type — a renamed
+        // .php/.html/.js file fails this regardless of its filename.
+        $validated = $request->validate([
+            'photo' => 'nullable|mimes:jpg,jpeg,png,webp|max:10240',
+        ]);
+
+        $updates = ['status' => 'assessed'];
+
+        if ($request->hasFile('photo')) {
+            // Private 'local' disk, not 'public' — unlike equipment photos,
+            // this must not be reachable by anyone with a guessed URL.
+            // ->store() also generates its own random filename, so the
+            // original filename the browser sent is never trusted/used.
+            if ($damageReport->photo_path) {
+                Storage::disk('local')->delete($damageReport->photo_path);
+            }
+            $updates['photo_path'] = $request->file('photo')->store('damage-reports', 'local');
+        }
+
+        $damageReport->update($updates);
 
         AuditLog::log(auth()->id(), 'Assessed Damage Report (Lab Staff)', 'damage_reports', $damageReport->id);
 
@@ -101,6 +122,22 @@ class DamageReportController extends Controller
         AuditLog::log(auth()->id(), 'Resolved Damage Report (Lab Staff)', 'damage_reports', $damageReport->id);
 
         return back()->with('success', 'Damage report resolved — equipment marked available again.');
+    }
+
+    /**
+     * Streams the damage photo to an authenticated, campus-scoped lab staff
+     * member only — never a public URL, since the photo may show a
+     * student's borrowing context.
+     */
+    public function photo(DamageReport $damageReport)
+    {
+        $this->abortUnlessOwnCampus($damageReport);
+
+        if (!$damageReport->photo_path || !Storage::disk('local')->exists($damageReport->photo_path)) {
+            abort(404);
+        }
+
+        return Storage::disk('local')->response($damageReport->photo_path);
     }
 
     public function print(DamageReport $damageReport)
