@@ -95,7 +95,9 @@ const currentSection = computed(() => navigation.value.find(item => isActive(ite
                 </svg>
             </button>
             <span class="text-white font-bold text-sm">ChemLab</span>
-            <NotificationBell />
+            <!-- Spacer to keep "ChemLab" centered — the single notification
+            bell lives in the page header below, not duplicated here. -->
+            <div class="h-6 w-6"></div>
         </div>
 
         <!-- Mobile sidebar drawer -->

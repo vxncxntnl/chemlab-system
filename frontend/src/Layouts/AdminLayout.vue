@@ -134,7 +134,10 @@ const initials = computed(() => {
                 </svg>
             </button>
             <span class="text-white font-bold text-sm">ChemLab Admin</span>
-            <NotificationBell />
+            <!-- Spacer to keep "ChemLab Admin" centered — the single
+            notification bell lives in the page header below, not
+            duplicated here. -->
+            <div class="h-6 w-6"></div>
         </div>
 
         <!-- Mobile sidebar -->
