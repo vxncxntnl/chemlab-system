@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\BorrowingLimitExceededException;
 use App\Exceptions\DuplicateSubmissionException;
 use App\Exceptions\InsufficientInventoryException;
 use App\Exceptions\InvalidBorrowingStateException;
@@ -23,6 +24,22 @@ use Illuminate\Support\Str;
 
 class BorrowingService
 {
+    /**
+     * Statuses that count as "active" (not yet returned) toward a
+     * borrower's 2-active-transaction limit — everything except a
+     * finished (returned) or ended (cancelled/rejected) request.
+     */
+    private const ACTIVE_STATUSES = ['pending_faculty', 'pending_admin', 'approved', 'borrowed', 'overdue'];
+
+    public const MAX_ACTIVE_BORROWINGS = 2;
+
+    public function activeBorrowingCount(int $userId): int
+    {
+        return Borrowing::where('user_id', $userId)
+            ->whereIn('status', self::ACTIVE_STATUSES)
+            ->count();
+    }
+
     /**
      * SQLite (unlike MySQL/Postgres) has no real row-level locking — a
      * concurrent writer that loses the race gets an immediate "database is
@@ -183,6 +200,12 @@ class BorrowingService
 
     public function createBorrowing(array $data, array $equipment, int $userId, bool $notifyFaculty = true): Borrowing
     {
+        if ($this->activeBorrowingCount($userId) >= self::MAX_ACTIVE_BORROWINGS) {
+            throw new BorrowingLimitExceededException(
+                'You already have ' . self::MAX_ACTIVE_BORROWINGS . ' active borrowing requests. Please wait for one to be returned before submitting a new request.'
+            );
+        }
+
         $lock = $this->acquireSubmissionLock($userId, $data, $equipment);
         try {
             return $this->doCreateBorrowing($data, $equipment, $userId, $notifyFaculty);

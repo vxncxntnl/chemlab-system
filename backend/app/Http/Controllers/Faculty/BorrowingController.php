@@ -60,10 +60,14 @@ class BorrowingController extends Controller
                 ->find($request->inventory_id);
         }
 
+        $activeBorrowingCount = $this->borrowingService->activeBorrowingCount($user->id);
+
         return Inertia::render('Faculty/Borrowings/Create', [
             'campuses' => $campuses,
             'availableInventory' => $availableInventory,
             'preselectedInventory' => $preselectedInventory,
+            'activeBorrowingCount' => $activeBorrowingCount,
+            'maxActiveBorrowings' => BorrowingService::MAX_ACTIVE_BORROWINGS,
         ]);
     }
 
@@ -102,6 +106,8 @@ class BorrowingController extends Controller
         } catch (\App\Exceptions\InsufficientInventoryException $e) {
             return back()->withErrors(['equipment' => $e->getMessage()]);
         } catch (\App\Exceptions\DuplicateSubmissionException $e) {
+            return back()->withErrors(['equipment' => $e->getMessage()]);
+        } catch (\App\Exceptions\BorrowingLimitExceededException $e) {
             return back()->withErrors(['equipment' => $e->getMessage()]);
         }
 

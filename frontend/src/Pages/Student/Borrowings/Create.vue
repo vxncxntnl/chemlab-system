@@ -37,7 +37,11 @@ const props = defineProps<{
         location: { location_name: string };
     } | null;
     preselectedActivityId?: number | null;
+    activeBorrowingCount: number;
+    maxActiveBorrowings: number;
 }>();
+
+const atBorrowingLimit = computed(() => props.activeBorrowingCount >= props.maxActiveBorrowings);
 
 const initialEquipment = props.preselectedInventory
     ? [{ equipment_id: props.preselectedInventory.equipment_id, inventory_id: props.preselectedInventory.id, quantity: 1 }]
@@ -171,6 +175,16 @@ const submit = () => {
         <template #header>
             <h1 class="text-xl font-semibold text-gray-800">New Borrowing Request</h1>
         </template>
+
+        <!-- Borrowing limit warning -->
+        <div v-if="atBorrowingLimit" class="mb-4 rounded-md bg-amber-50 border border-amber-200 p-4 flex items-center gap-3">
+            <svg class="h-5 w-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p class="text-sm text-amber-800">
+                You already have {{ activeBorrowingCount }} active borrowing requests (the maximum is {{ maxActiveBorrowings }}). Please wait for one to be returned before submitting a new request.
+            </p>
+        </div>
 
         <!-- Pre-selected equipment banner -->
         <div v-if="preselectedInventory && form.equipment.some(e => e.inventory_id === preselectedInventory!.id)"
@@ -356,7 +370,7 @@ const submit = () => {
 
             <div class="flex items-center justify-end space-x-4">
                 <Link :href="route('student.borrowings.index')" class="text-gray-600 hover:text-gray-900">Cancel</Link>
-                <PrimaryButton :disabled="form.processing">Submit Request</PrimaryButton>
+                <PrimaryButton :disabled="form.processing || atBorrowingLimit">Submit Request</PrimaryButton>
             </div>
         </form>
     </UserLayout>
