@@ -107,8 +107,11 @@ const submitDamageReport = () => {
 <template>
     <UserLayout>
         <template #header>
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-gray-800">Borrowing Request #{{ borrowing.id }}</h1>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-semibold text-gray-800">Borrowing Request #{{ borrowing.id }}</h1>
+                    <BackButton :href="route('student.borrowings.index')">Back to My Borrowings</BackButton>
+                </div>
                 <Badge :variant="statusVariant(borrowing.status)" class="text-sm">{{ formatStatus(borrowing.status) }}</Badge>
             </div>
         </template>
@@ -268,10 +271,8 @@ const submitDamageReport = () => {
             </Card>
 
             <!-- Actions -->
-            <div class="flex items-center justify-between">
-                <BackButton :href="route('student.borrowings.index')">Back to My Borrowings</BackButton>
+            <div v-if="borrowing.status === 'pending_faculty'" class="flex items-center justify-end">
                 <button
-                    v-if="borrowing.status === 'pending_faculty'"
                     @click="cancelRequest"
                     class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors"
                 >

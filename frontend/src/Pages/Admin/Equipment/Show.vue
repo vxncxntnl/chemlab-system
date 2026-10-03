@@ -110,8 +110,11 @@ const printEquipment = () => {
 <template>
     <AdminLayout>
         <template #header>
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-gray-800">{{ equipment.name }}</h1>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-semibold text-gray-800">{{ equipment.name }}</h1>
+                    <BackButton :href="route('admin.equipment.index')">Back to Equipment</BackButton>
+                </div>
                 <div class="flex space-x-2">
                     <button
                         @click="printEquipment"
@@ -354,11 +357,6 @@ const printEquipment = () => {
                     </table>
                 </div>
             </Card>
-
-            <!-- Back Link -->
-            <div class="flex justify-start print:hidden">
-                <BackButton :href="route('admin.equipment.index')">Back to Equipment</BackButton>
-            </div>
         </div>
 
         <!-- Adjust Stock Modal -->

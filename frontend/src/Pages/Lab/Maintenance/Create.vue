@@ -4,6 +4,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import TextInput from '@/Components/TextInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import BackButton from '@/Components/BackButton.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
 defineProps<{
@@ -29,11 +30,9 @@ const submit = () => {
 <template>
     <LabLayout>
         <template #header>
-            <div class="flex items-center justify-between w-full">
+            <div class="flex items-center gap-4">
                 <h1 class="text-xl font-semibold text-gray-800">Log Maintenance</h1>
-                <Link :href="route('lab.maintenance.index')" class="text-gray-500 hover:text-gray-700 text-sm">
-                    &larr; Back
-                </Link>
+                <BackButton :href="route('lab.maintenance.index')">Back to Maintenance Logs</BackButton>
             </div>
         </template>
 

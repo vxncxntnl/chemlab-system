@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UserLayout from '@/Layouts/UserLayout.vue';
+import BackButton from '@/Components/BackButton.vue';
 import { Link } from '@inertiajs/vue3';
 
 defineProps<{ activity: any }>();
@@ -26,19 +27,17 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
 
 <template>
     <UserLayout>
-        <div class="p-6 max-w-3xl mx-auto">
-            <div class="flex items-center gap-3 mb-6">
-                <Link :href="route('student.activities.index')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                    </svg>
-                </Link>
+        <template #header>
+            <div class="flex items-center gap-4 flex-wrap">
                 <h1 class="text-xl font-bold text-gray-800">{{ activity.title }}</h1>
-                <span :class="['ml-2 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize', statusBadge[activity.status]]">
+                <BackButton :href="route('student.activities.index')">Back to Activities</BackButton>
+                <span :class="['px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize', statusBadge[activity.status]]">
                     {{ activity.status }}
                 </span>
             </div>
+        </template>
 
+        <div class="p-6 max-w-3xl mx-auto">
             <!-- Info -->
             <div class="bg-white rounded-xl shadow p-6 mb-5">
                 <div class="grid grid-cols-2 gap-5">

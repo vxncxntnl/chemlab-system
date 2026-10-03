@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import InputError from '@/Components/InputError.vue';
+import BackButton from '@/Components/BackButton.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
@@ -39,16 +40,14 @@ const submit = () => form.put(route('admin.activities.update', props.activity.id
 
 <template>
     <AdminLayout>
-        <div class="p-6 max-w-3xl mx-auto">
-            <div class="flex items-center gap-3 mb-6">
-                <Link :href="route('admin.activities.index')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                    </svg>
-                </Link>
+        <template #header>
+            <div class="flex items-center gap-4">
                 <h1 class="text-xl font-semibold text-gray-800">Edit Activity</h1>
+                <BackButton :href="route('admin.activities.index')">Back to Activities</BackButton>
             </div>
+        </template>
 
+        <div class="p-6 max-w-3xl mx-auto">
             <form @submit.prevent="submit" class="bg-white rounded-xl shadow p-6 space-y-5">
 
                 <div>

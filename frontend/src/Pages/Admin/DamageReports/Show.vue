@@ -59,8 +59,11 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
 <template>
     <AdminLayout>
         <template #header>
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-gray-800">Damage Report #{{ report.id }}</h1>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-semibold text-gray-800">Damage Report #{{ report.id }}</h1>
+                    <BackButton :href="route('admin.damage-reports.index')">Back to Damage Reports</BackButton>
+                </div>
                 <Badge :variant="getStatusBadge(report.status)" class="text-sm capitalize">{{ report.status?.replace(/_/g, ' ') }}</Badge>
             </div>
         </template>
@@ -149,11 +152,6 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                     </Link>
                 </div>
             </Card>
-
-            <!-- Back Link -->
-            <div class="flex justify-start">
-                <BackButton :href="route('admin.damage-reports.index')">Back to Damage Reports</BackButton>
-            </div>
         </div>
         <ConfirmModal :show="showAssessModal" title="Assess Damage" message="Mark this damage report as assessed?" confirmLabel="Yes, Assess" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doAssess" @cancelled="showAssessModal = false" />
         <ConfirmModal :show="showResolveModal" title="Resolve Report" message="Mark this damage report as resolved?" confirmLabel="Yes, Resolve" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doResolve" @cancelled="showResolveModal = false" />

@@ -57,7 +57,10 @@ const submitReject = () => {
 <template>
     <AdminLayout>
         <template #header>
-            <h1 class="text-xl font-semibold text-gray-800">Reservation Details</h1>
+            <div class="flex items-center gap-4">
+                <h1 class="text-xl font-semibold text-gray-800">Reservation Details</h1>
+                <BackButton :href="route('admin.reservations.index')">Back to Reservations</BackButton>
+            </div>
         </template>
 
         <div class="max-w-3xl">
@@ -105,10 +108,6 @@ const submitReject = () => {
                     </div>
                 </template>
             </Card>
-
-            <div class="mt-4">
-                <BackButton :href="route('admin.reservations.index')">Back to Reservations</BackButton>
-            </div>
         </div>
 
         <!-- Reject Modal -->

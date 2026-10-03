@@ -2,6 +2,7 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Badge from '@/Components/Badge.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
+import BackButton from '@/Components/BackButton.vue';
 import { Link, useForm, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -79,10 +80,13 @@ const availableQuantity = props.item.quantity - props.item.qty_sent_iligan - pro
 <template>
     <AdminLayout>
         <template #header>
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold" style="color: #16a34a;">{{ item.description }}</h1>
-                    <p class="text-sm text-gray-500">Max Suniel Carmen, Cagayan de Oro City - S.Y. 2024-2025</p>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold" style="color: #16a34a;">{{ item.description }}</h1>
+                        <p class="text-sm text-gray-500">Max Suniel Carmen, Cagayan de Oro City - S.Y. 2024-2025</p>
+                    </div>
+                    <BackButton :href="route('admin.lab-inventory.index')">Back to Lab Inventory</BackButton>
                 </div>
                 <div class="flex items-center gap-2">
                     <Link
@@ -98,12 +102,6 @@ const availableQuantity = props.item.quantity - props.item.qty_sent_iligan - pro
                     >
                         Delete
                     </button>
-                    <Link
-                        :href="route('admin.lab-inventory.index')"
-                        class="inline-flex items-center rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-                    >
-                        Back
-                    </Link>
                 </div>
             </div>
         </template>

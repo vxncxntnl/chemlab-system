@@ -37,7 +37,10 @@ const getStatusBadge = (status: string): BadgeVariant => {
 <template>
     <AdminLayout>
         <template #header>
-            <h1 class="text-xl font-semibold text-gray-800">Maintenance Details</h1>
+            <div class="flex items-center gap-4">
+                <h1 class="text-xl font-semibold text-gray-800">Maintenance Details</h1>
+                <BackButton :href="route('admin.maintenance.index')">Back to Maintenance Logs</BackButton>
+            </div>
         </template>
 
         <div class="max-w-3xl">
@@ -93,10 +96,6 @@ const getStatusBadge = (status: string): BadgeVariant => {
                     </Link>
                 </template>
             </Card>
-
-            <div class="mt-4">
-                <BackButton :href="route('admin.maintenance.index')">Back to Maintenance Logs</BackButton>
-            </div>
         </div>
     </AdminLayout>
 </template>

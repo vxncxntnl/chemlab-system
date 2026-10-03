@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import UserLayout from '@/Layouts/UserLayout.vue';
 import QrCode from '@/Components/QrCode.vue';
+import BackButton from '@/Components/BackButton.vue';
 import { Link } from '@inertiajs/vue3';
 
 defineProps<{ activity: any }>();
@@ -27,23 +28,23 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
 
 <template>
     <UserLayout>
-        <div class="p-6 max-w-4xl mx-auto">
-            <div class="flex items-center gap-3 mb-6">
-                <Link :href="route('faculty.activities.index')" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                    </svg>
-                </Link>
-                <h1 class="text-xl font-semibold text-gray-800">{{ activity.title }}</h1>
-                <span :class="['ml-2 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize', statusBadge[activity.status]]">
-                    {{ activity.status }}
-                </span>
+        <template #header>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-semibold text-gray-800">{{ activity.title }}</h1>
+                    <BackButton :href="route('faculty.activities.index')">Back to Activities</BackButton>
+                    <span :class="['px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize', statusBadge[activity.status]]">
+                        {{ activity.status }}
+                    </span>
+                </div>
                 <Link v-if="activity.status !== 'expired'" :href="route('faculty.activities.edit', activity.id)"
-                    class="ml-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition">
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition">
                     Edit
                 </Link>
             </div>
+        </template>
 
+        <div class="p-6 max-w-4xl mx-auto">
             <div class="bg-white rounded-xl shadow p-6 mb-5">
                 <div class="grid grid-cols-2 gap-6">
                     <div>

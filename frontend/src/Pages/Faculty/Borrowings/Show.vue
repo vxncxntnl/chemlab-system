@@ -119,8 +119,11 @@ const submitDamageReport = () => {
 <template>
     <UserLayout>
         <template #header>
-            <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-gray-800">Borrowing Request #{{ borrowing.id }}</h1>
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-semibold text-gray-800">Borrowing Request #{{ borrowing.id }}</h1>
+                    <BackButton :href="route('faculty.borrowings.index')">Back to My Borrowings</BackButton>
+                </div>
                 <Badge :variant="statusVariant(borrowing.status)" class="text-sm">{{ formatStatus(borrowing.status) }}</Badge>
             </div>
         </template>
@@ -291,9 +294,8 @@ const submitDamageReport = () => {
             </Card>
 
             <!-- Actions -->
-            <div class="flex items-center justify-between">
-                <BackButton :href="route('faculty.borrowings.index')">Back to My Borrowings</BackButton>
-                <div v-if="borrowing.status === 'pending_faculty' && isAssignedFaculty" class="flex gap-3">
+            <div v-if="borrowing.status === 'pending_faculty'" class="flex items-center justify-end">
+                <div v-if="isAssignedFaculty" class="flex gap-3">
                     <button
                         @click="approveRequest"
                         class="inline-flex items-center rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-800 transition-colors"
@@ -307,7 +309,7 @@ const submitDamageReport = () => {
                         Reject
                     </button>
                 </div>
-                <div v-else-if="borrowing.status === 'pending_faculty' && !isAssignedFaculty" class="flex items-center gap-2 text-sm text-gray-500">
+                <div v-else class="flex items-center gap-2 text-sm text-gray-500">
                     <svg class="h-4 w-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" />
                     </svg>
