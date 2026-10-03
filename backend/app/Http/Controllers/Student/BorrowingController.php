@@ -47,9 +47,13 @@ class BorrowingController extends Controller
 
     public function create(Request $request)
     {
+        $user = auth()->user();
         $campuses = Campus::with('locations')->get();
-        $availableInventory = $this->inventoryService->getAvailableEquipment();
-        $faculties = User::where('role', 'faculty')->where('status', 'active')->get();
+        // Hard-restricted to the student's own campus — they already chose
+        // it when completing their profile, and the lab in-charge wants
+        // students limited to their own campus's equipment and faculty.
+        $availableInventory = $this->inventoryService->getAvailableEquipment($user->campus_id);
+        $faculties = User::where('role', 'faculty')->where('status', 'active')->where('campus_id', $user->campus_id)->get();
         $activities = Activity::with('instructor')
             ->whereHas('students', fn($q) => $q->where('activity_students.student_id', auth()->id()))
             ->whereIn('status', ['upcoming', 'ongoing'])
@@ -281,9 +285,10 @@ class BorrowingController extends Controller
                 });
             });
 
-        if ($request->campus_id) {
-            $query->where('campus_id', $request->campus_id);
-        }
+        // Hard-restricted to the student's own campus (not just a default) —
+        // the lab in-charge wants students limited to their own campus's
+        // equipment, same as the faculty picker on the borrow request form.
+        $query->where('campus_id', $user->campus_id);
 
         if ($request->category) {
             $query->whereHas('equipment', function ($q) use ($request) {
@@ -298,14 +303,13 @@ class BorrowingController extends Controller
         }
 
         $inventory = $query->paginate(15);
-        $campuses = Campus::all();
         $categories = Equipment::distinct()->pluck('category')->filter();
 
         return Inertia::render('Student/Equipment/Index', [
             'inventory' => $inventory,
-            'campuses' => $campuses,
+            'campus' => $user->campus,
             'categories' => $categories,
-            'filters' => $request->only(['campus_id', 'category', 'search']),
+            'filters' => $request->only(['category', 'search']),
             'studentCourse' => $studentCourse,
         ]);
     }

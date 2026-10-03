@@ -6,7 +6,6 @@ use App\Exceptions\DuplicateSubmissionException;
 use App\Exceptions\InsufficientInventoryException;
 use App\Exceptions\InvalidBorrowingStateException;
 use App\Mail\BorrowingSubmitted;
-use App\Mail\BorrowingStatusUpdated;
 use App\Models\Borrowing;
 use App\Models\BorrowingEquipment;
 use App\Models\DamageReport;
@@ -20,7 +19,6 @@ use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class BorrowingService
@@ -315,17 +313,8 @@ class BorrowingService
             AuditLog::log($approverId, 'Approved Borrow Request (Final)', 'borrowings', $locked->id);
         });
 
-        // Sent after the transaction/lock is released — mail I/O has no
-        // business holding a row lock open.
-        $locked->load('user');
-        if ($locked->user && $locked->user->email) {
-            Mail::to($locked->user->email)->queue(new BorrowingStatusUpdated(
-                $locked,
-                'Approved',
-                'Your borrowing request has been approved. Please coordinate with the laboratory staff to pick up the equipment on your scheduled date.'
-            ));
-        }
-
+        // Email is sent by the caller via NotificationService::borrowingApprovedByAdmin(),
+        // which names the approving admin — sending a second one here duplicated it.
         return $locked;
     }
 
@@ -344,15 +333,9 @@ class BorrowingService
             AuditLog::log($userId, 'Rejected Borrow Request', 'borrowings', $locked->id, null, $reason ? ['reason' => $reason] : null);
         });
 
-        $locked->load('user');
-        if ($locked->user && $locked->user->email) {
-            $message = 'Unfortunately, your borrowing request has been rejected. Please contact your faculty or laboratory staff for more information.';
-            if ($reason) {
-                $message .= " Reason given: \"{$reason}\"";
-            }
-            Mail::to($locked->user->email)->queue(new BorrowingStatusUpdated($locked, 'Rejected', $message));
-        }
-
+        // Email is sent by the caller via NotificationService::borrowingRejectedByAdmin(),
+        // which names the rejecting admin and includes the reason — sending a
+        // second one here duplicated it.
         return $locked;
     }
 

@@ -47,8 +47,11 @@ class BorrowingController extends Controller
 
     public function create(Request $request)
     {
+        $user = auth()->user();
         $campuses = Campus::with('locations')->get();
-        $availableInventory = $this->inventoryService->getAvailableEquipment();
+        // Hard-restricted to the faculty's own campus — same rule as
+        // students, per the lab in-charge's instruction.
+        $availableInventory = $this->inventoryService->getAvailableEquipment($user->campus_id);
 
         $preselectedInventory = null;
         if ($request->inventory_id) {
@@ -243,11 +246,12 @@ class BorrowingController extends Controller
 
     public function equipment(Request $request)
     {
+        $user = auth()->user();
         $query = EquipmentInventory::with(['equipment', 'campus', 'location']);
 
-        if ($request->campus_id) {
-            $query->where('campus_id', $request->campus_id);
-        }
+        // Hard-restricted to the faculty's own campus (not just a default) —
+        // same rule as students, per the lab in-charge's instruction.
+        $query->where('campus_id', $user->campus_id);
 
         if ($request->category) {
             $query->whereHas('equipment', function ($q) use ($request) {
@@ -262,14 +266,13 @@ class BorrowingController extends Controller
         }
 
         $inventory = $query->paginate(15);
-        $campuses = Campus::all();
         $categories = Equipment::distinct()->pluck('category')->filter();
 
         return Inertia::render('Faculty/Equipment/Index', [
             'inventory' => $inventory,
-            'campuses' => $campuses,
+            'campus' => $user->campus,
             'categories' => $categories,
-            'filters' => $request->only(['campus_id', 'category', 'search']),
+            'filters' => $request->only(['category', 'search']),
         ]);
     }
 

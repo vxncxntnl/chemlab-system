@@ -15,17 +15,15 @@ const props = defineProps<{
         total: number;
         links: Array<any>;
     };
-    campuses: Array<{ id: number; campus_name: string }>;
+    campus: { id: number; campus_name: string } | null;
     categories: Array<string>;
     filters: {
-        campus_id?: number;
         category?: string;
         search?: string;
     };
 }>();
 
 const search = ref(props.filters.search || '');
-const campusFilter = ref(props.filters.campus_id ? String(props.filters.campus_id) : '');
 const categoryFilter = ref(props.filters.category || '');
 const lastRefreshed = ref(new Date().toLocaleTimeString());
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -33,7 +31,6 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null;
 const applyFilters = () => {
     router.get(route('faculty.equipment'), {
         search: search.value,
-        campus_id: campusFilter.value,
         category: categoryFilter.value,
     }, { preserveState: true, replace: true });
 };
@@ -87,14 +84,13 @@ onBeforeUnmount(() => { if (refreshInterval) clearInterval(refreshInterval); });
                     @keyup.enter="applyFilters"
                 />
             </div>
-            <select
-                v-model="campusFilter"
-                class="rounded-lg border border-gray-200 bg-white pl-3 pr-8 py-2.5 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
-                @change="applyFilters"
-            >
-                <option value="">All Campuses</option>
-                <option v-for="campus in campuses" :key="campus.id" :value="campus.id">{{ campus.campus_name }}</option>
-            </select>
+            <span v-if="campus" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-600 shadow-sm">
+                <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {{ campus.campus_name }}
+            </span>
         </div>
 
         <!-- Category pills -->
