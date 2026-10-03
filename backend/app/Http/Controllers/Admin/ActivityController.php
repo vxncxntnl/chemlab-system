@@ -34,42 +34,6 @@ class ActivityController extends Controller
         ]);
     }
 
-    public function create()
-    {
-        $instructors = User::where('role', 'faculty')->where('status', 'active')->orderBy('name')->get();
-        $students    = User::where('role', 'student')->orderBy('name')->get();
-
-        return Inertia::render('Admin/Activities/Create', [
-            'instructors' => $instructors,
-            'students'    => $students,
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'title'        => 'required|string|max:255',
-            'instructor_id'=> 'required|exists:users,id',
-            'department'   => 'required|string|max:255',
-            'activity_date'=> 'required|date',
-            'status'       => 'required|in:upcoming,ongoing,completed,cancelled',
-            'description'  => 'nullable|string|max:1000',
-            'student_ids'  => 'nullable|array',
-            'student_ids.*'=> 'exists:users,id',
-        ]);
-
-        $activity = Activity::create($validated);
-
-        if (!empty($validated['student_ids'])) {
-            $activity->students()->sync($validated['student_ids']);
-        }
-
-        AuditLog::log(auth()->id(), 'Created Activity', 'activities', $activity->id);
-
-        return redirect()->route('admin.activities.index')
-            ->with('success', 'Activity created successfully.');
-    }
-
     public function show(Activity $activity)
     {
         $activity->load(['instructor', 'students', 'borrowings.user', 'borrowings.borrowingEquipment.equipment']);

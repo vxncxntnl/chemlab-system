@@ -44,13 +44,6 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
         <template #header>
             <div class="flex items-center gap-4">
                 <h1 class="text-xl font-semibold text-gray-800">Laboratory Activities</h1>
-                <Link :href="route('admin.activities.create')"
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    New Activity
-                </Link>
             </div>
         </template>
 

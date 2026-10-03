@@ -212,8 +212,9 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     Route::post('/lab-inventory/{labInventory}/transfer', [LabInventoryController::class, 'transfer'])->name('lab-inventory.transfer.store');
     Route::resource('lab-inventory', LabInventoryController::class);
 
-    // Activities
-    Route::resource('activities', AdminActivityController::class);
+    // Activities — Admin can view/edit/delete but not create; only Faculty
+    // originates a new lab activity.
+    Route::resource('activities', AdminActivityController::class)->except(['create', 'store']);
 });
 
 // Faculty Routes
