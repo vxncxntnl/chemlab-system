@@ -164,6 +164,10 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
 
     // Borrowings
     Route::get('/borrowings', [AdminBorrowingController::class, 'index'])->name('borrowings.index');
+    // create/store registered before the {borrowing} wildcard below, or
+    // "create" would be parsed as a borrowing ID instead of reaching here.
+    Route::get('/borrowings/create', [AdminBorrowingController::class, 'create'])->name('borrowings.create');
+    Route::post('/borrowings', [AdminBorrowingController::class, 'store'])->name('borrowings.store');
     Route::get('/borrowings/{borrowing}', [AdminBorrowingController::class, 'show'])->name('borrowings.show');
     Route::post('/borrowings/{borrowing}/approve', [AdminBorrowingController::class, 'approve'])->name('borrowings.approve');
     Route::post('/borrowings/{borrowing}/reject', [AdminBorrowingController::class, 'reject'])->name('borrowings.reject');

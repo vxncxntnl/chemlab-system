@@ -326,7 +326,12 @@ class BorrowingService
 
     public function approveBorrowing(Borrowing $borrowing, int $approverId): Borrowing
     {
-        $locked = $this->transitionLocked($borrowing, ['pending_admin'], function (Borrowing $locked) use ($approverId) {
+        // Faculty approval is optional — admin can approve directly from
+        // 'pending_faculty' too, not only after faculty has already moved it
+        // to 'pending_admin'. If skipped this way, faculty_approved_by/_at
+        // simply stay null, which correctly reflects that faculty never
+        // acted on it.
+        $locked = $this->transitionLocked($borrowing, ['pending_admin', 'pending_faculty'], function (Borrowing $locked) use ($approverId) {
             $locked->update([
                 'status' => 'approved',
                 'approved_by' => $approverId,
@@ -343,7 +348,10 @@ class BorrowingService
 
     public function rejectBorrowing(Borrowing $borrowing, int $userId, ?string $reason = null): Borrowing
     {
-        $locked = $this->transitionLocked($borrowing, ['pending_admin'], function (Borrowing $locked) use ($userId, $reason) {
+        // Same as approveBorrowing() — admin can reject directly from
+        // 'pending_faculty' too, for consistency with the optional-faculty
+        // approval workflow.
+        $locked = $this->transitionLocked($borrowing, ['pending_admin', 'pending_faculty'], function (Borrowing $locked) use ($userId, $reason) {
             // Restore reserved quantity — inside the same locked check as the
             // status change, so a second concurrent reject attempt sees the
             // already-cancelled status and is rejected before it can credit

@@ -117,11 +117,11 @@ const doReturn = () => { router.post(route('admin.borrowings.return', props.borr
 
                 <!-- Action Buttons -->
                 <div class="mt-6 flex flex-wrap gap-3">
-                    <PrimaryButton v-if="borrowing.status === 'pending_admin'" @click="approve">
+                    <PrimaryButton v-if="['pending_admin', 'pending_faculty'].includes(borrowing.status)" @click="approve">
                         Approve
                     </PrimaryButton>
                     <button
-                        v-if="borrowing.status === 'pending_admin'"
+                        v-if="['pending_admin', 'pending_faculty'].includes(borrowing.status)"
                         @click="reject"
                         class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                     >
