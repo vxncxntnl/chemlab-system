@@ -30,7 +30,7 @@ class BorrowingController extends Controller
     {
         $user = auth()->user();
 
-        $query = Borrowing::with(['equipment', 'approver'])
+        $query = Borrowing::with(['equipment', 'approver', 'faculty'])
             ->where('user_id', $user->id);
 
         if ($request->status) {
@@ -190,6 +190,7 @@ class BorrowingController extends Controller
             'borrowingEquipment.inventory.campus',
             'borrowingEquipment.inventory.location',
             'approver',
+            'faculty',
             'damageReports',
         ]);
 

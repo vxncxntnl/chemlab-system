@@ -85,7 +85,7 @@ class BorrowingController extends Controller
     {
         $campusId = auth()->user()->campus_id;
 
-        $query = Borrowing::with(['user', 'approver', 'equipment'])
+        $query = Borrowing::with(['user', 'approver', 'faculty', 'equipment'])
             ->whereHas('borrowingEquipment.inventory', function ($q) use ($campusId) {
                 $q->where('campus_id', $campusId);
             });

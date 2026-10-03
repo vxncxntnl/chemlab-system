@@ -25,6 +25,7 @@ defineProps<{
 
 const columns = [
     { key: 'user', label: 'Borrower' },
+    { key: 'faculty', label: 'Faculty / Instructor' },
     { key: 'borrow_date', label: 'Borrow Date' },
     { key: 'return_date', label: 'Return Date' },
     { key: 'status', label: 'Status' },
@@ -58,6 +59,10 @@ const columns = [
                     <div class="text-sm font-medium text-gray-900">{{ row.user?.name }}</div>
                     <div class="text-sm text-gray-500">{{ row.user?.student_id }}</div>
                 </div>
+            </template>
+
+            <template #cell-faculty="{ row }">
+                {{ row.faculty?.name ?? '—' }}
             </template>
 
             <template #cell-borrow_date="{ value }">

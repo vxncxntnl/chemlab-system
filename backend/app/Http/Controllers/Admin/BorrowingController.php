@@ -19,7 +19,7 @@ class BorrowingController extends Controller
 
     public function index(Request $request)
     {
-        $query = Borrowing::with(['user', 'approver', 'equipment']);
+        $query = Borrowing::with(['user', 'approver', 'faculty', 'equipment']);
 
         if ($request->status) {
             // Accepts either a single status or an array of statuses (e.g.

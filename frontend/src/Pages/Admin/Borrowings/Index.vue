@@ -29,6 +29,7 @@ const statusFilter = ref('');
 
 const columns = [
     { key: 'user', label: 'Borrower' },
+    { key: 'faculty', label: 'Faculty / Instructor' },
     { key: 'borrow_date', label: 'Borrow Date' },
     { key: 'return_date', label: 'Return Date' },
     { key: 'status', label: 'Status' },
@@ -92,6 +93,9 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString();
                     <div class="text-sm font-medium text-gray-900">{{ row.user?.name }}</div>
                     <div class="text-sm text-gray-500">{{ row.user?.email }}</div>
                 </div>
+            </template>
+            <template #cell-faculty="{ row }">
+                {{ row.faculty?.name ?? '—' }}
             </template>
             <template #cell-borrow_date="{ value }">
                 {{ formatDate(value) }}

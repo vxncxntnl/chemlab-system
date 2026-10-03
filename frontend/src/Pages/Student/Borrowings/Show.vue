@@ -32,6 +32,10 @@ const props = defineProps<{
             id: number;
             name: string;
         } | null;
+        faculty: {
+            id: number;
+            name: string;
+        } | null;
         borrowing_equipment: Array<{
             id: number;
             quantity: number;
@@ -134,6 +138,10 @@ const submitDamageReport = () => {
                     <div v-if="borrowing.actual_return_date">
                         <dt class="text-sm font-medium text-gray-500">Actual Return Date</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ new Date(borrowing.actual_return_date).toLocaleDateString() }}</dd>
+                    </div>
+                    <div v-if="borrowing.faculty">
+                        <dt class="text-sm font-medium text-gray-500">Faculty / Instructor</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ borrowing.faculty.name }}</dd>
                     </div>
                     <div v-if="borrowing.approver">
                         <dt class="text-sm font-medium text-gray-500">Processed By</dt>

@@ -28,6 +28,7 @@ const statusFilter = ref('');
 
 const columns = [
     { key: 'equipment', label: 'Equipment' },
+    { key: 'faculty', label: 'Faculty / Instructor' },
     { key: 'borrow_date', label: 'Borrow Date' },
     { key: 'return_date', label: 'Return Date' },
     { key: 'status', label: 'Status' },
@@ -100,6 +101,9 @@ const doCancel = () => {
                 <div class="text-sm text-gray-900">
                     {{ row.equipment?.map((e: any) => e.name).join(', ') || 'Multiple items' }}
                 </div>
+            </template>
+            <template #cell-faculty="{ row }">
+                {{ row.faculty?.name ?? '—' }}
             </template>
             <template #cell-borrow_date="{ value }">
                 {{ formatDate(value) }}
