@@ -65,6 +65,9 @@ class AdminSelfRoleRemovalTest extends TestCase
             'name' => $targetAdmin->name,
             'email' => $targetAdmin->email,
             'role' => 'faculty',
+            // Faculty accounts require a campus and department.
+            'campus_id' => \App\Models\Campus::create(['campus_name' => 'Main Campus'])->id,
+            'department' => 'Nursing',
         ]);
 
         $response->assertSessionHasNoErrors();

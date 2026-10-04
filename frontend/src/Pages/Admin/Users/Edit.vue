@@ -43,7 +43,9 @@ const props = defineProps<{
         student_id: string | null;
         employee_id: string | null;
         contact_number: string | null;
+        campus_id: number | null;
     };
+    campuses: { id: number; campus_name: string }[];
 }>();
 
 const form = useForm({
@@ -57,6 +59,7 @@ const form = useForm({
     student_id: props.user.student_id || '',
     employee_id: props.user.employee_id || '',
     contact_number: props.user.contact_number || '',
+    campus_id: props.user.campus_id ?? ('' as number | ''),
 });
 
 const submit = () => {
@@ -126,10 +129,24 @@ const submit = () => {
                             class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
                         >
                             <option value="admin">Admin</option>
+                            <option value="lab_staff">Lab Staff</option>
                             <option value="faculty">Faculty</option>
                             <option value="student">Student</option>
                         </select>
                         <InputError :message="form.errors.role" class="mt-2" />
+                    </div>
+
+                    <div v-if="form.role !== 'admin'">
+                        <InputLabel for="campus_id" value="Campus" />
+                        <select
+                            id="campus_id"
+                            v-model="form.campus_id"
+                            class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+                        >
+                            <option value="" disabled>Select campus</option>
+                            <option v-for="campus in campuses" :key="campus.id" :value="campus.id">{{ campus.campus_name }}</option>
+                        </select>
+                        <InputError :message="form.errors.campus_id" class="mt-2" />
                     </div>
 
                     <div v-if="form.role === 'student'">

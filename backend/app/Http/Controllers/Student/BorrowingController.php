@@ -16,6 +16,7 @@ use App\Services\NotificationService;
 use App\Services\BorrowingService;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class BorrowingController extends Controller
@@ -91,12 +92,17 @@ class BorrowingController extends Controller
             'return_date' => 'required|date|after_or_equal:borrow_date',
             'purpose' => 'required|string|max:500',
             'subject' => 'required|string|max:255',
-            'faculty_id' => 'required|exists:users,id',
+            // Must be an active faculty account — only role:faculty users can
+            // approve, so a request routed to anyone else (e.g. a stale form
+            // after that user's role changed) could never be approved.
+            'faculty_id' => ['required', Rule::exists('users', 'id')->where('role', 'faculty')->where('status', 'active')->whereNull('deleted_at')],
             'activity_id' => 'nullable|exists:activities,id',
             'equipment' => 'required|array|min:1',
             'equipment.*.equipment_id' => 'required|exists:equipment,id',
             'equipment.*.inventory_id' => 'required|exists:equipment_inventory,id',
             'equipment.*.quantity' => 'required|integer|min:1',
+        ], [
+            'faculty_id.exists' => 'The selected faculty member is not available. Please refresh the page and choose another faculty member.',
         ]);
 
         // Verify availability
