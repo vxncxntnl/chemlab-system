@@ -8,6 +8,7 @@ use App\Models\ActivityEquipmentQr;
 use App\Models\AuditLog;
 use App\Models\EquipmentInventory;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ActivityController extends Controller
@@ -29,11 +30,43 @@ class ActivityController extends Controller
         ]);
     }
 
+    /**
+     * Equipment a faculty member may attach to an activity: their own
+     * campus only — the same hard restriction Browse Equipment and New
+     * Request already apply. An activity being edited keeps showing items
+     * it already has, so saving doesn't silently drop them. Legacy faculty
+     * accounts with no campus set keep the previous all-campus list.
+     */
+    private function selectableInventory(?Activity $activity = null)
+    {
+        $campusId = auth()->user()->campus_id;
+        $attachedIds = $activity ? $activity->equipmentQrCodes->pluck('equipment_inventory_id')->all() : [];
+
+        return EquipmentInventory::with(['equipment', 'campus', 'location'])
+            ->whereHas('equipment')
+            ->when($campusId, fn ($q) => $q->where(fn ($q) => $q
+                ->where('campus_id', $campusId)
+                ->orWhereIn('id', $attachedIds)))
+            ->get();
+    }
+
+    private function inventoryRules(?Activity $activity = null): array
+    {
+        $allowedIds = $this->selectableInventory($activity)->pluck('id')->all();
+
+        return [
+            'equipment_inventory_ids'   => 'nullable|array',
+            'equipment_inventory_ids.*' => [Rule::in($allowedIds)],
+        ];
+    }
+
+    private const INVENTORY_MESSAGES = [
+        'equipment_inventory_ids.*.in' => 'You can only add equipment from your own campus.',
+    ];
+
     public function create()
     {
-        $inventoryItems = EquipmentInventory::with(['equipment', 'campus', 'location'])
-            ->whereHas('equipment')
-            ->get();
+        $inventoryItems = $this->selectableInventory();
 
         return Inertia::render('Faculty/Activities/Create', [
             'inventoryItems' => $inventoryItems,
@@ -48,9 +81,7 @@ class ActivityController extends Controller
             'activity_date'=> 'required|date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
             'description'  => 'nullable|string|max:1000',
-            'equipment_inventory_ids'   => 'nullable|array',
-            'equipment_inventory_ids.*' => 'exists:equipment_inventory,id',
-        ]);
+        ] + $this->inventoryRules(), self::INVENTORY_MESSAGES);
 
         $validated['instructor_id'] = auth()->id();
 
@@ -105,9 +136,7 @@ class ActivityController extends Controller
         }
 
         $activity->load(['students', 'equipmentQrCodes']);
-        $inventoryItems = EquipmentInventory::with(['equipment', 'campus', 'location'])
-            ->whereHas('equipment')
-            ->get();
+        $inventoryItems = $this->selectableInventory($activity);
 
         return Inertia::render('Faculty/Activities/Edit', [
             'activity' => $activity,
@@ -133,9 +162,7 @@ class ActivityController extends Controller
             'activity_date'=> 'required|date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
             'description'  => 'nullable|string|max:1000',
-            'equipment_inventory_ids'   => 'nullable|array',
-            'equipment_inventory_ids.*' => 'exists:equipment_inventory,id',
-        ]);
+        ] + $this->inventoryRules($activity), self::INVENTORY_MESSAGES);
 
         $activity->update([
             'title'         => $validated['title'],

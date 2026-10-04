@@ -101,11 +101,15 @@ const submit = () => form.post(route('faculty.activities.store'));
                     <div class="flex gap-2 mb-2">
                         <input v-model="equipmentSearch" type="text" placeholder="Search equipment..."
                             class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                        <select v-model="equipmentCampus"
+                        <select v-if="campusOptions.length > 1" v-model="equipmentCampus"
                             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                             <option value="">All Campuses</option>
                             <option v-for="campus in campusOptions" :key="campus" :value="campus">{{ campus }}</option>
                         </select>
+                        <span v-else-if="campusOptions.length === 1"
+                            class="px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-600 whitespace-nowrap">
+                            {{ campusOptions[0] }}
+                        </span>
                     </div>
                     <div class="border border-gray-200 rounded-lg max-h-48 overflow-y-auto divide-y divide-gray-100">
                         <label v-for="item in filteredEquipment" :key="item.id"
