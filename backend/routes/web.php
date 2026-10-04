@@ -28,7 +28,7 @@ use App\Http\Controllers\Lab\EquipmentController as LabEquipmentController;
 use App\Http\Controllers\Lab\LabInventoryController as LabLabInventoryController;
 use App\Http\Controllers\Lab\MaintenanceController as LabMaintenanceController;
 use App\Http\Controllers\Faculty\DashboardController as FacultyDashboardController;
-use App\Http\Controllers\Facity\BorrowingController as FacultyBorrowingController;
+use App\Http\Controllers\Faculty\BorrowingController as FacultyBorrowingController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\BorrowingController as StudentBorrowingController;
