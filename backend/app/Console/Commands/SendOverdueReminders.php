@@ -26,8 +26,7 @@ class SendOverdueReminders extends Command
 
         foreach ($dueTomorrow as $borrowing) {
             if ($borrowing->user && $borrowing->user->email) {
-                Mail::to($borrowing->user->email)->queue(new OverdueReminder($borrowing, false));
-                $this->info("Reminder sent to {$borrowing->user->email} for {$borrowing->claim_code} (due tomorrow)");
+                $this->deliver($borrowing, false, "Reminder sent to {$borrowing->user->email} for {$borrowing->claim_code} (due tomorrow)");
             }
         }
 
@@ -44,11 +43,26 @@ class SendOverdueReminders extends Command
             }
 
             if ($borrowing->user && $borrowing->user->email) {
-                Mail::to($borrowing->user->email)->queue(new OverdueReminder($borrowing, true));
-                $this->info("Overdue notice sent to {$borrowing->user->email} for {$borrowing->claim_code}");
+                $this->deliver($borrowing, true, "Overdue notice sent to {$borrowing->user->email} for {$borrowing->claim_code}");
             }
         }
 
         $this->info("Done. Reminders: {$dueTomorrow->count()} due-tomorrow, {$overdue->count()} overdue.");
+    }
+
+    /**
+     * Sent immediately rather than queued: the hosted server runs no queue
+     * worker, so queued reminders would sit in the jobs table forever. One
+     * failed address is logged without stopping the rest.
+     */
+    private function deliver(Borrowing $borrowing, bool $isOverdue, string $successMessage): void
+    {
+        try {
+            Mail::to($borrowing->user->email)->send(new OverdueReminder($borrowing, $isOverdue));
+            $this->info($successMessage);
+        } catch (\Throwable $e) {
+            report($e);
+            $this->error("Failed to email {$borrowing->user->email} for {$borrowing->claim_code}: {$e->getMessage()}");
+        }
     }
 }

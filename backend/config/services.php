@@ -41,4 +41,10 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    // Secret for the daily reminders URL called by an external scheduler
+    // (the hosted server has no cron). Unset = the URL is disabled.
+    'cron' => [
+        'secret' => env('CRON_SECRET'),
+    ],
+
 ];

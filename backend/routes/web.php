@@ -40,6 +40,10 @@ use Inertia\Inertia;
 use App\Models\User;
 use App\Models\Campus;
 
+// Daily overdue reminders, triggered by an external scheduler (no cron on the host)
+Route::get('/cron/overdue-reminders/{token}', [\App\Http\Controllers\CronController::class, 'overdueReminders'])
+    ->middleware('throttle:10,1')->name('cron.overdue-reminders');
+
 // Google OAuth routes
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
