@@ -202,6 +202,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('/settings/test-email', [SettingsController::class, 'sendTestEmail'])->middleware('throttle:5,1')->name('settings.test-email');
 
     // Reservations
     Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');

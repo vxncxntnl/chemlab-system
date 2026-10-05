@@ -33,8 +33,12 @@ class NotificationService
         // Send email
         try {
             Mail::to($user->email)->send(new BorrowingStatusMail($user, $title, $message));
-        } catch (\Exception $e) {
-            // Silently fail if email fails — in-system notification already saved
+        } catch (\Throwable $e) {
+            // The in-system notification is already saved, so the user's
+            // action still succeeds — but the failure is logged (it used to
+            // be swallowed silently, which hid why hosted email wasn't
+            // arriving).
+            report($e);
         }
     }
 
@@ -204,7 +208,7 @@ class NotificationService
         self::sendWithEmail(
             $user,
             'Borrow Request Fully Approved',
-            "Your borrow request #{$borrowing->id} has been fully approved by {$approver->name}. Please visit the laboratory to pick up your equipment on your scheduled date.",
+            "Your borrow request #{$borrowing->id} has been approved by {$approver->name}. It is now waiting for equipment release by the laboratory staff.",
             'success',
             self::borrowingLink($borrowing)
         );

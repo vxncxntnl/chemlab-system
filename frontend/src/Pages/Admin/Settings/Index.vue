@@ -16,7 +16,19 @@ const props = defineProps<{
         type: string;
         description?: string;
     }>>;
+    mail: {
+        mailer: string;
+        host: string | null;
+        port: number | string | null;
+        from: string | null;
+    };
 }>();
+
+const testEmail = useForm({});
+
+const sendTestEmail = () => {
+    testEmail.post(route('admin.settings.test-email'), { preserveScroll: true });
+};
 
 const settingsArray = computed(() => {
     const result: Array<any> = [];
@@ -109,5 +121,24 @@ const groupLabels: Record<string, string> = {
                 </PrimaryButton>
             </div>
         </form>
+
+        <Card class="mt-6 max-w-3xl">
+            <template #header>
+                <h3 class="text-lg font-medium">Email Delivery</h3>
+            </template>
+
+            <dl class="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div><dt class="text-gray-500">Mailer</dt><dd class="font-medium text-gray-800">{{ mail.mailer }}</dd></div>
+                <div><dt class="text-gray-500">Mail server</dt><dd class="font-medium text-gray-800 break-all">{{ mail.host || '—' }}{{ mail.port ? ':' + mail.port : '' }}</dd></div>
+                <div class="sm:col-span-2"><dt class="text-gray-500">Sender address</dt><dd class="font-medium text-gray-800 break-all">{{ mail.from || '—' }}</dd></div>
+            </dl>
+
+            <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-gray-500">Sends a sample notification to your own email address and shows whether this server delivered it.</p>
+                <PrimaryButton type="button" :disabled="testEmail.processing" @click="sendTestEmail" class="shrink-0">
+                    {{ testEmail.processing ? 'Sending…' : 'Send Test Email' }}
+                </PrimaryButton>
+            </div>
+        </Card>
     </AdminLayout>
 </template>
