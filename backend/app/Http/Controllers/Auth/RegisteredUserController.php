@@ -49,7 +49,15 @@ class RegisteredUserController extends Controller
             'status'     => 'pending',
         ]);
 
-        event(new Registered($user));
+        // Sends the verification email. A mail-server failure must not turn
+        // into a 500 here: the account already exists by this point, so the
+        // person would be left unable to log in or re-register. They can
+        // use "Resend Verification Email" instead; the failure is logged.
+        try {
+            event(new Registered($user));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         Auth::login($user);
 

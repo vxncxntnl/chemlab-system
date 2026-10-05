@@ -37,6 +37,14 @@ const verificationLinkSent = computed(
             provided during registration.
         </div>
 
+        <div
+            class="mb-4 text-sm font-medium text-red-600"
+            v-if="status === 'verification-link-failed'"
+        >
+            We couldn't send the verification email right now. Please try
+            again in a few minutes.
+        </div>
+
         <form @submit.prevent="submit">
             <div class="mt-4 flex items-center justify-between">
                 <PrimaryButton
