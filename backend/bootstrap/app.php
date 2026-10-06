@@ -25,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // advance, which covers both this tunnel and most real deployments.
         $middleware->trustProxies(at: '*');
 
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
         $middleware->web(append: [
             \App\Http\Middleware\EnsureAccountIsActive::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
@@ -37,6 +39,18 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // 419 = the session (and its CSRF token) expired, e.g. a page left
+        // open past SESSION_LIFETIME. Instead of a "Page Expired" error,
+        // send the user to log in again with an explanation. JSON callers
+        // keep the plain 419.
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if ($e instanceof HttpExceptionInterface && $e->getStatusCode() === 419 && !$request->expectsJson()) {
+                return redirect()->route('login')->with('status', 'Your session expired. Please log in again.');
+            }
+
+            return null;
+        });
+
         // When APP_DEBUG is off, show a clean branded page (with no stack
         // trace, query text, or file paths) instead of Laravel's default
         // error view, for the well-defined HTTP-status exceptions (404, 403,

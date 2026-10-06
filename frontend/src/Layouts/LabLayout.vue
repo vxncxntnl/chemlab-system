@@ -4,6 +4,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import FlashToast from '@/Components/FlashToast.vue';
+import IdleLogout from '@/Components/IdleLogout.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
 
 const page = usePage();
@@ -188,6 +189,7 @@ const currentSection = computed(() => navigation.find(item => isActive(item.href
                         <span class="font-medium text-gray-600">{{ currentSection }}</span>
                     </nav>
                     <FlashToast />
+                    <IdleLogout />
                     <slot />
                 </div>
             </main>

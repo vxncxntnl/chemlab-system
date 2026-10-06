@@ -79,6 +79,12 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
+        // Sent by the inactivity timer (IdleLogout.vue) so the login page
+        // can say why the user was signed out.
+        if ($request->input('reason') === 'idle') {
+            return redirect()->route('login')->with('status', 'You were logged out due to inactivity. Please log in again.');
+        }
+
         return redirect('/');
     }
 }
