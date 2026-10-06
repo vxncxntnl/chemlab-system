@@ -63,21 +63,21 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
 <template>
     <UserLayout>
         <template #header>
-            <div class="flex items-center justify-between flex-wrap gap-2">
-                <div class="flex items-center gap-4">
-                    <h1 class="text-xl font-semibold text-gray-800">{{ activity.title }}</h1>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-4 min-w-0">
+                    <h1 class="text-xl font-semibold text-gray-800 break-words">{{ activity.title }}</h1>
                     <BackButton :href="route('faculty.activities.index')">Back to Activities</BackButton>
                     <span :class="['px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize', statusBadge[activity.status]]">
                         {{ activity.status }}
                     </span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex w-full items-center gap-2 sm:w-auto">
                     <button v-if="canCancel" type="button" @click="showCancelModal = true"
-                        class="px-4 py-2 bg-white border border-red-300 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-lg transition">
+                        class="flex-1 sm:flex-none text-center px-4 py-2.5 bg-white border border-red-300 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-lg transition">
                         Cancel Activity
                     </button>
                     <Link v-if="!['expired', 'cancelled'].includes(activity.status)" :href="route('faculty.activities.edit', activity.id)"
-                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition">
+                        class="flex-1 sm:flex-none text-center px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition">
                         Edit
                     </Link>
                 </div>

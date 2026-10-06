@@ -126,7 +126,7 @@ const submitDamageReport = () => {
     <UserLayout>
         <template #header>
             <div class="flex items-center justify-between flex-wrap gap-2">
-                <div class="flex items-center gap-4">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-4">
                     <h1 class="text-xl font-semibold text-gray-800">Borrowing Request #{{ borrowing.id }}</h1>
                     <BackButton :href="route('faculty.borrowings.index')">Back to My Borrowings</BackButton>
                 </div>
@@ -135,6 +135,47 @@ const submitDamageReport = () => {
         </template>
 
         <div class="space-y-6">
+            <!-- Actions: at the top so they're seen first, stacked full-width on phones -->
+            <div v-if="borrowing.status === 'pending_faculty' && isAssignedFaculty"
+                class="flex flex-col gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-yellow-800">This request is waiting for your approval.</p>
+                <div class="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                    <button
+                        @click="approveRequest"
+                        class="inline-flex w-full items-center justify-center rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-800 transition-colors sm:w-auto"
+                    >
+                        Approve
+                    </button>
+                    <button
+                        @click="rejectRequest"
+                        class="inline-flex w-full items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors sm:w-auto"
+                    >
+                        Reject
+                    </button>
+                </div>
+            </div>
+
+            <div v-else-if="borrowing.status === 'pending_faculty'"
+                class="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                <svg class="h-4 w-4 flex-shrink-0 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" />
+                </svg>
+                <span>Awaiting approval from <span class="font-medium text-gray-800">{{ borrowing.faculty?.name }}</span></span>
+            </div>
+
+            <!-- QR/activity requests skip faculty approval, so while the admin
+                 hasn't acted yet the assigned faculty can still withdraw them. -->
+            <div v-else-if="borrowing.status === 'pending_admin' && isAssignedFaculty"
+                class="flex flex-col gap-3 rounded-xl border border-purple-200 bg-purple-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-sm text-purple-800">Waiting for admin approval. You can still cancel this request until the admin approves it.</p>
+                <button
+                    @click="showCancelModal = true"
+                    class="inline-flex w-full flex-shrink-0 items-center justify-center rounded-lg border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 transition-colors sm:w-auto"
+                >
+                    Cancel Request
+                </button>
+            </div>
+
             <!-- Status Tracker -->
             <BorrowingStatusTracker :status="borrowing.status" />
 
@@ -299,40 +340,6 @@ const submitDamageReport = () => {
                 </form>
             </Card>
 
-            <!-- Actions -->
-            <div v-if="borrowing.status === 'pending_faculty'" class="flex items-center justify-end">
-                <div v-if="isAssignedFaculty" class="flex gap-3">
-                    <button
-                        @click="approveRequest"
-                        class="inline-flex items-center rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-800 transition-colors"
-                    >
-                        Approve
-                    </button>
-                    <button
-                        @click="rejectRequest"
-                        class="inline-flex items-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors"
-                    >
-                        Reject
-                    </button>
-                </div>
-                <div v-else class="flex items-center gap-2 text-sm text-gray-500">
-                    <svg class="h-4 w-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z" />
-                    </svg>
-                    Awaiting approval from <span class="font-medium text-gray-700 ml-1">{{ borrowing.faculty?.name }}</span>
-                </div>
-            </div>
-
-            <!-- QR/activity requests skip faculty approval, so while the admin
-                 hasn't acted yet the assigned faculty can still withdraw them. -->
-            <div v-if="borrowing.status === 'pending_admin' && isAssignedFaculty" class="flex items-center justify-end">
-                <button
-                    @click="showCancelModal = true"
-                    class="inline-flex items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 transition-colors"
-                >
-                    Cancel Request
-                </button>
-            </div>
         </div>
 
         <ConfirmModal
