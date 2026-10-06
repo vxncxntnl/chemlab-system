@@ -35,6 +35,18 @@ const filteredEquipment = computed(() =>
     )
 );
 
+// Stock for each item, so faculty can see what is actually available.
+const availabilityLabel = (item: any) => {
+    const available = Number(item.available_quantity ?? 0);
+    return available > 0 ? `${available} / ${item.total_quantity ?? available} available` : 'Out of stock';
+};
+const availabilityClass = (item: any) => {
+    const available = Number(item.available_quantity ?? 0);
+    if (available <= 0) return 'bg-red-100 text-red-700';
+    if (available <= 2) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-green-100 text-green-700';
+};
+
 const toggleEquipment = (id: number) => {
     const idx = form.equipment_inventory_ids.indexOf(id);
     if (idx === -1) form.equipment_inventory_ids.push(id);
@@ -122,12 +134,17 @@ const submit = () => form.put(route('faculty.activities.update', props.activity.
                     </div>
                     <div class="border border-gray-200 rounded-lg max-h-48 overflow-y-auto divide-y divide-gray-100">
                         <label v-for="item in filteredEquipment" :key="item.id"
-                            class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
+                            class="flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
                             <input type="checkbox" :value="item.id" :checked="form.equipment_inventory_ids.includes(item.id)"
                                 @change="toggleEquipment(item.id)"
-                                class="rounded border-gray-300 text-green-600 focus:ring-green-500" />
-                            <span class="text-sm text-gray-700">{{ item.equipment?.name }}</span>
-                            <span class="text-xs text-gray-400 ml-auto">{{ item.campus?.campus_name }} — {{ item.location?.location_name }}</span>
+                                class="mt-0.5 rounded border-gray-300 text-green-600 focus:ring-green-500" />
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm text-gray-700">{{ item.equipment?.name }}</p>
+                                <p class="truncate text-xs text-gray-400">{{ item.campus?.campus_name }} — {{ item.location?.location_name }}</p>
+                            </div>
+                            <span :class="['shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', availabilityClass(item)]">
+                                {{ availabilityLabel(item) }}
+                            </span>
                         </label>
                         <p v-if="filteredEquipment.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">No equipment found.</p>
                     </div>
