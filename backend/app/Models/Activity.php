@@ -18,6 +18,7 @@ class Activity extends Model
         'instructor_id',
         'department',
         'activity_date',
+        'return_date',
         'status',
         'description',
     ];
@@ -25,7 +26,8 @@ class Activity extends Model
     protected function casts(): array
     {
         return [
-            'activity_date' => 'date',
+            'activity_date' => 'date:Y-m-d',
+            'return_date' => 'date:Y-m-d',
         ];
     }
 

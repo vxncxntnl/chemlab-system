@@ -54,7 +54,7 @@ class FacultyActivityCampusTest extends TestCase
     private function activityPayload(array $inventoryIds): array
     {
         return [
-            'title' => 'Titration Lab', 'department' => 'Nursing', 'activity_date' => now()->addDay()->toDateString(),
+            'title' => 'Titration Lab', 'department' => 'Nursing', 'activity_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString(),
             'status' => 'upcoming', 'equipment_inventory_ids' => $inventoryIds,
         ];
     }

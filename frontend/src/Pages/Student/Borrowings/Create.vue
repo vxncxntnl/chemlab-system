@@ -26,7 +26,7 @@ const props = defineProps<{
         location: { location_name: string };
     }>;
     faculties: Array<{ id: number; name: string; email: string; department: string | null }>;
-    activities: Array<{ id: number; title: string; subject?: string; department: string; activity_date: string; instructor: { id: number; name: string } }>;
+    activities: Array<{ id: number; title: string; subject?: string; department: string; activity_date: string; return_date?: string | null; instructor: { id: number; name: string } }>;
     preselectedInventory?: {
         id: number;
         equipment_id: number;
@@ -68,8 +68,19 @@ const onActivityChange = () => {
         form.faculty_id = String(activity.instructor.id);
         // Use subject field if available, otherwise fall back to title
         form.subject = activity.subject ?? activity.title;
+        // The faculty set the borrow/return dates on the activity
+        if (activity.return_date) {
+            form.borrow_date = activity.activity_date;
+            form.return_date = activity.return_date;
+        }
     }
 };
+
+// Dates come from the linked activity and can't be changed (the server
+// applies them too).
+const datesSetByActivity = computed(() =>
+    !!props.activities.find(a => a.id === Number(form.activity_id))?.return_date
+);
 
 // Came here via a QR scan with an activity preselected — auto-fill instructor & subject
 onMounted(() => {
@@ -220,6 +231,7 @@ const submit = () => {
                     <div>
                         <InputLabel for="borrow_date" value="Borrow Date" />
                         <TextInput id="borrow_date" v-model="form.borrow_date" type="date" class="mt-1 block w-full"
+                            :class="{ 'bg-gray-50 text-gray-600': datesSetByActivity }" :readonly="datesSetByActivity"
                             :min="new Date().toISOString().split('T')[0]" required />
                         <InputError :message="form.errors.borrow_date" class="mt-2" />
                     </div>
@@ -227,9 +239,14 @@ const submit = () => {
                     <div>
                         <InputLabel for="return_date" value="Return Date" />
                         <TextInput id="return_date" v-model="form.return_date" type="date" class="mt-1 block w-full"
+                            :class="{ 'bg-gray-50 text-gray-600': datesSetByActivity }" :readonly="datesSetByActivity"
                             :min="form.borrow_date || new Date().toISOString().split('T')[0]" required />
                         <InputError :message="form.errors.return_date" class="mt-2" />
                     </div>
+
+                    <p v-if="datesSetByActivity" class="sm:col-span-2 -mt-3 text-xs text-green-700">
+                        These dates were set by your instructor for this activity.
+                    </p>
 
                     <div class="sm:col-span-2">
                         <InputLabel for="purpose" value="Purpose" />

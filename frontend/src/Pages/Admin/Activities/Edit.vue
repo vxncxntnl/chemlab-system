@@ -15,7 +15,8 @@ const form = useForm({
     title: props.activity.title,
     instructor_id: props.activity.instructor_id,
     department: props.activity.department,
-    activity_date: props.activity.activity_date,
+    activity_date: props.activity.activity_date?.slice(0, 10) ?? '',
+    return_date: props.activity.return_date?.slice(0, 10) ?? '',
     status: props.activity.status,
     description: props.activity.description ?? '',
     student_ids: props.activity.students?.map((s: any) => s.id) ?? [] as number[],
@@ -88,10 +89,16 @@ const submit = () => form.put(route('admin.activities.update', props.activity.id
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Activity Date <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Borrow Date <span class="text-red-500">*</span></label>
                         <input v-model="form.activity_date" type="date" required
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                         <InputError :message="form.errors.activity_date" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Return Date <span class="text-red-500">*</span></label>
+                        <input v-model="form.return_date" type="date" required :min="form.activity_date || undefined"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <InputError :message="form.errors.return_date" class="mt-1" />
                     </div>
                 </div>
 
@@ -103,7 +110,7 @@ const submit = () => form.put(route('admin.activities.update', props.activity.id
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Enrolled Students
+                        Students Joined
                         <span class="ml-1 text-xs text-gray-400">({{ form.student_ids.length }} selected)</span>
                     </label>
                     <input v-model="studentSearch" type="text" placeholder="Search students..."

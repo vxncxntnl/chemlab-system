@@ -84,6 +84,23 @@ class BorrowingController extends Controller
 
     public function store(Request $request)
     {
+        // A request for an activity the student joined uses the borrow and
+        // return dates the faculty set on that activity, regardless of what
+        // the form sent. Older activities without a return date keep the
+        // student-chosen dates.
+        if ($request->filled('activity_id')) {
+            $activity = Activity::whereKey($request->activity_id)
+                ->whereNotNull('return_date')
+                ->whereHas('students', fn ($q) => $q->where('activity_students.student_id', auth()->id()))
+                ->first();
+            if ($activity) {
+                $request->merge([
+                    'borrow_date' => $activity->activity_date->toDateString(),
+                    'return_date' => $activity->return_date->toDateString(),
+                ]);
+            }
+        }
+
         $validated = $request->validate([
             'borrow_date' => 'required|date|after_or_equal:today',
             // 'after_or_equal', not 'after' — same-day borrow-and-return is a

@@ -50,11 +50,15 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                         <p class="text-sm font-semibold text-gray-800">{{ activity.department }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Activity Date</p>
+                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Borrow Date</p>
                         <p class="text-sm font-semibold text-gray-800">{{ formatDate(activity.activity_date) }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Enrolled Students</p>
+                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Return Date</p>
+                        <p class="text-sm font-semibold text-gray-800">{{ activity.return_date ? formatDate(activity.return_date) : 'Not set' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Students Joined</p>
                         <p class="text-sm font-semibold text-gray-800">{{ activity.students?.length ?? 0 }}</p>
                     </div>
                 </div>

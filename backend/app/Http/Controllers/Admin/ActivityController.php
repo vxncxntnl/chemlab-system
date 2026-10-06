@@ -73,10 +73,13 @@ class ActivityController extends Controller
             'instructor_id'=> 'required|exists:users,id',
             'department'   => 'required|string|max:255',
             'activity_date'=> 'required|date',
+            'return_date'  => 'required|date|after_or_equal:activity_date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
             'description'  => 'nullable|string|max:1000',
             'student_ids'  => 'nullable|array',
             'student_ids.*'=> 'exists:users,id',
+        ], [
+            'return_date.after_or_equal' => 'The return date must be on or after the borrow date.',
         ]);
 
         $activity->update($validated);

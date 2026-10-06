@@ -62,6 +62,7 @@ class ActivityController extends Controller
 
     private const INVENTORY_MESSAGES = [
         'equipment_inventory_ids.*.in' => 'You can only add equipment from your own campus.',
+        'return_date.after_or_equal' => 'The return date must be on or after the borrow date.',
     ];
 
     public function create()
@@ -79,6 +80,7 @@ class ActivityController extends Controller
             'title'        => 'required|string|max:255',
             'department'   => 'required|string|max:255',
             'activity_date'=> 'required|date',
+            'return_date'  => 'required|date|after_or_equal:activity_date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
             'description'  => 'nullable|string|max:1000',
         ] + $this->inventoryRules(), self::INVENTORY_MESSAGES);
@@ -90,6 +92,7 @@ class ActivityController extends Controller
             'instructor_id' => $validated['instructor_id'],
             'department'    => $validated['department'],
             'activity_date' => $validated['activity_date'],
+            'return_date'   => $validated['return_date'],
             'status'        => $validated['status'],
             'description'   => $validated['description'] ?? null,
         ]);
@@ -160,6 +163,7 @@ class ActivityController extends Controller
             'title'        => 'required|string|max:255',
             'department'   => 'required|string|max:255',
             'activity_date'=> 'required|date',
+            'return_date'  => 'required|date|after_or_equal:activity_date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
             'description'  => 'nullable|string|max:1000',
         ] + $this->inventoryRules($activity), self::INVENTORY_MESSAGES);
@@ -168,6 +172,7 @@ class ActivityController extends Controller
             'title'         => $validated['title'],
             'department'    => $validated['department'],
             'activity_date' => $validated['activity_date'],
+            'return_date'   => $validated['return_date'],
             'status'        => $validated['status'],
             'description'   => $validated['description'] ?? null,
         ]);

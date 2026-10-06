@@ -13,6 +13,7 @@ const form = useForm({
     title: '',
     department: '',
     activity_date: '',
+    return_date: '',
     status: 'upcoming',
     description: '',
     equipment_inventory_ids: [] as number[],
@@ -62,7 +63,7 @@ const submit = () => form.post(route('faculty.activities.store'));
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
+                    <div class="col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Department <span class="text-red-500">*</span></label>
                         <select v-model="form.department" required
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
@@ -80,10 +81,16 @@ const submit = () => form.post(route('faculty.activities.store'));
                         <InputError :message="form.errors.department" class="mt-1" />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Activity Date <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Borrow Date <span class="text-red-500">*</span></label>
                         <input v-model="form.activity_date" type="date" required
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                         <InputError :message="form.errors.activity_date" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Return Date <span class="text-red-500">*</span></label>
+                        <input v-model="form.return_date" type="date" required :min="form.activity_date || undefined"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <InputError :message="form.errors.return_date" class="mt-1" />
                     </div>
                 </div>
 

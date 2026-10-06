@@ -46,7 +46,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
         <div class="p-6 max-w-4xl mx-auto">
             <!-- Info Card -->
             <div class="bg-white rounded-xl shadow p-6 mb-5">
-                <div class="grid grid-cols-3 gap-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div>
                         <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Instructor</p>
                         <p class="text-sm font-semibold text-gray-800">{{ activity.instructor?.name ?? '—' }}</p>
@@ -56,8 +56,12 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                         <p class="text-sm font-semibold text-gray-800">{{ activity.department }}</p>
                     </div>
                     <div>
-                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Activity Date</p>
+                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Borrow Date</p>
                         <p class="text-sm font-semibold text-gray-800">{{ formatDate(activity.activity_date) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">Return Date</p>
+                        <p class="text-sm font-semibold text-gray-800">{{ activity.return_date ? formatDate(activity.return_date) : 'Not set' }}</p>
                     </div>
                 </div>
                 <div v-if="activity.description" class="mt-4 pt-4 border-t border-gray-100">
@@ -69,7 +73,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
             <!-- Students -->
             <div class="bg-white rounded-xl shadow p-6 mb-5">
                 <h2 class="text-base font-semibold text-gray-800 mb-4">
-                    Enrolled Students
+                    Students Joined
                     <span class="ml-1 text-xs text-gray-400 font-normal">({{ activity.students?.length ?? 0 }})</span>
                 </h2>
                 <div v-if="activity.students?.length" class="grid grid-cols-2 md:grid-cols-3 gap-2">
