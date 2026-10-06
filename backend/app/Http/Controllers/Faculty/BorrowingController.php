@@ -150,17 +150,25 @@ class BorrowingController extends Controller
             return redirect()->route('faculty.borrowings.index')->with('error', 'You do not have access to this request.');
         }
 
-        if ($borrowing->status !== 'pending_faculty') {
-            return back()->with('error', 'This request cannot be cancelled.');
+        // Also while waiting on the admin: requests made through an activity
+        // QR skip faculty approval and land in 'pending_admin' directly, so
+        // that's the faculty's last chance to withdraw them.
+        $cancellable = ['pending_faculty', 'pending_admin'];
+        if (!in_array($borrowing->status, $cancellable, true)) {
+            return back()->with('error', 'This request can no longer be cancelled — it has already been approved by the admin.');
         }
 
         try {
-            $this->borrowingService->cancelBorrowing($borrowing, auth()->id(), 'Cancelled Borrow Request (Faculty)');
+            $this->borrowingService->cancelBorrowing($borrowing, auth()->id(), 'Cancelled Borrow Request (Faculty)', $cancellable);
         } catch (\App\Exceptions\InvalidBorrowingStateException $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', 'Borrowing request cancelled.');
+        if ($borrowing->user_id !== auth()->id()) {
+            NotificationService::borrowingCancelledByFaculty($borrowing->fresh('user'), auth()->user());
+        }
+
+        return back()->with('success', 'Borrowing request cancelled. The student has been notified.');
     }
 
     public function approve(Borrowing $borrowing)

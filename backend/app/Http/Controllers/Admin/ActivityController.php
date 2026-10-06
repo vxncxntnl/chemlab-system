@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\ActivityService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -13,7 +14,8 @@ class ActivityController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Activity::with(['instructor', 'students']);
+        $query = Activity::with(['instructor', 'students'])
+            ->withCount(['borrowings as requests_count' => fn ($q) => $q->withTrashed()]);
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
@@ -50,6 +52,11 @@ class ActivityController extends Controller
                 ->with('error', 'This activity has expired and can no longer be edited.');
         }
 
+        if ($activity->status === 'cancelled') {
+            return redirect()->route('admin.activities.show', $activity)
+                ->with('error', 'This activity was cancelled and can no longer be edited.');
+        }
+
         $activity->load('students');
         $instructors = User::where('role', 'faculty')->where('status', 'active')->orderBy('name')->get();
         $students    = User::where('role', 'student')->orderBy('name')->get();
@@ -66,6 +73,11 @@ class ActivityController extends Controller
         if ($activity->isExpired()) {
             return redirect()->route('admin.activities.show', $activity)
                 ->with('error', 'This activity has expired and can no longer be edited.');
+        }
+
+        if ($activity->status === 'cancelled') {
+            return redirect()->route('admin.activities.show', $activity)
+                ->with('error', 'This activity was cancelled and can no longer be edited.');
         }
 
         $validated = $request->validate([
@@ -91,13 +103,37 @@ class ActivityController extends Controller
             ->with('success', 'Activity updated successfully.');
     }
 
-    public function destroy(Activity $activity)
+    public function destroy(Activity $activity, ActivityService $activities)
     {
+        // Same rule as faculty: deleting would unlink (not cancel) its
+        // requests, so an activity with requests is cancelled instead.
+        if ($activities->hasAnyRequests($activity)) {
+            return back()->with('error', 'This activity already has borrowing requests, so it can\'t be deleted. Use Cancel Activity instead — it keeps the history and cancels requests that haven\'t been released.');
+        }
+
         AuditLog::log(auth()->id(), 'Deleted Activity', 'activities', $activity->id);
 
         $activity->delete();
 
         return redirect()->route('admin.activities.index')
             ->with('success', 'Activity deleted.');
+    }
+
+    public function cancel(Activity $activity, ActivityService $activities)
+    {
+        if (in_array($activity->status, ['cancelled', 'completed', 'expired'], true)) {
+            return back()->with('error', "This activity is already {$activity->status}.");
+        }
+
+        try {
+            $count = $activities->cancel($activity, auth()->user());
+        } catch (\App\Exceptions\InvalidBorrowingStateException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.activities.show', $activity)
+            ->with('success', $count
+                ? "Activity cancelled. {$count} borrowing request(s) were cancelled and the students were notified."
+                : 'Activity cancelled.');
     }
 }

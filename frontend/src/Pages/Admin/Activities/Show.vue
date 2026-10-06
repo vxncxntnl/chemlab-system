@@ -3,7 +3,32 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import BackButton from '@/Components/BackButton.vue';
 import { Link } from '@inertiajs/vue3';
 
-defineProps<{ activity: any }>();
+const props = defineProps<{ activity: any }>();
+
+// What each joined student has done for this activity: their latest
+// request's status, or nothing yet.
+const requestStatusLabel: Record<string, string> = {
+    pending_faculty: 'Waiting for Faculty',
+    pending_admin: 'Waiting for Admin',
+    approved: 'Ready for Release',
+    borrowed: 'Borrowed',
+    overdue: 'Overdue',
+    returned: 'Returned',
+    cancelled: 'Cancelled',
+};
+const requestStatusClass: Record<string, string> = {
+    pending_faculty: 'bg-yellow-100 text-yellow-800',
+    pending_admin: 'bg-purple-100 text-purple-800',
+    approved: 'bg-blue-100 text-blue-800',
+    borrowed: 'bg-green-100 text-green-800',
+    overdue: 'bg-red-100 text-red-800',
+    returned: 'bg-gray-200 text-gray-700',
+    cancelled: 'bg-red-50 text-red-700',
+};
+const latestRequestFor = (studentId: number) =>
+    (props.activity.borrowings ?? [])
+        .filter((b: any) => b.user_id === studentId)
+        .sort((a: any, b: any) => b.id - a.id)[0];
 
 const statusBadge: Record<string, string> = {
     upcoming: 'bg-blue-100 text-blue-800',
@@ -82,10 +107,19 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                         <span class="w-7 h-7 rounded-full bg-green-100 text-green-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
                             {{ student.name.charAt(0).toUpperCase() }}
                         </span>
-                        <span class="truncate">{{ student.name }}</span>
+                        <div class="min-w-0">
+                            <p class="truncate">{{ student.name }}</p>
+                            <span v-if="latestRequestFor(student.id)"
+                                :class="['inline-block mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold', requestStatusClass[latestRequestFor(student.id).status] ?? 'bg-gray-100 text-gray-600']">
+                                {{ requestStatusLabel[latestRequestFor(student.id).status] ?? latestRequestFor(student.id).status }}
+                            </span>
+                            <span v-else class="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500">
+                                Not yet requested
+                            </span>
+                        </div>
                     </div>
                 </div>
-                <p v-else class="text-sm text-gray-400">No students enrolled.</p>
+                <p v-else class="text-sm text-gray-400">No students have joined yet.</p>
             </div>
 
             <!-- Borrowings -->

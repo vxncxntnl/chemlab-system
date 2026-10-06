@@ -22,8 +22,8 @@ class QrScanController extends Controller
         $qr->increment('scan_count');
         $qr->update(['last_scanned_at' => now()]);
 
-        if ($qr->activity->isExpired()) {
-            $message = 'This activity has expired — please ask your instructor for a new QR code.';
+        if ($qr->activity->isExpired() || $qr->activity->status === 'cancelled') {
+            $message = static::closedMessage($qr);
 
             return Auth::check()
                 ? redirect()->route('dashboard')->with('error', $message)
@@ -53,13 +53,23 @@ class QrScanController extends Controller
      * Called from GoogleAuthController and CompleteProfileController so the token survives
      * the OAuth + profile-completion redirect chain via the session.
      */
+    /**
+     * A cancelled activity's QR codes stop working just like an expired one's.
+     */
+    private static function closedMessage(ActivityEquipmentQr $qr): string
+    {
+        return $qr->activity->status === 'cancelled'
+            ? 'This activity was cancelled by your instructor, so its QR code no longer works.'
+            : 'This activity has expired — please ask your instructor for a new QR code.';
+    }
+
     public static function redirectAfterScan(ActivityEquipmentQr $qr, User $user): RedirectResponse
     {
-        if ($qr->activity->isExpired()) {
+        if ($qr->activity->isExpired() || $qr->activity->status === 'cancelled') {
             session()->forget('qr_token');
 
             return redirect()->route('dashboard')
-                ->with('error', 'This activity has expired — please ask your instructor for a new QR code.');
+                ->with('error', static::closedMessage($qr));
         }
 
         if (!$user->campus_id || !$user->student_id || !$user->course) {

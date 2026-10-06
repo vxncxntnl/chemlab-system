@@ -223,6 +223,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
 
     // Activities — Admin can view/edit/delete but not create; only Faculty
     // originates a new lab activity.
+    Route::post('/activities/{activity}/cancel', [AdminActivityController::class, 'cancel'])->name('activities.cancel');
     Route::resource('activities', AdminActivityController::class)->except(['create', 'store']);
 });
 
@@ -230,6 +231,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
 Route::middleware(['auth', 'role:faculty', 'throttle:300,1'])->prefix('faculty')->name('faculty.')->group(function () {
     Route::get('/dashboard', [FacultyDashboardController::class, 'index'])->name('dashboard');
     Route::resource('activities', FacultyActivityController::class);
+    Route::post('/activities/{activity}/cancel', [FacultyActivityController::class, 'cancel'])->name('activities.cancel');
     Route::get('/equipment', [FacultyBorrowingController::class, 'equipment'])->name('equipment');
     Route::get('/borrowings', [FacultyBorrowingController::class, 'index'])->name('borrowings.index');
     Route::get('/borrowings/create', [FacultyBorrowingController::class, 'create'])->name('borrowings.create');

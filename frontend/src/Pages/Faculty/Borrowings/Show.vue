@@ -92,6 +92,12 @@ const doApprove = () => {
     showApproveModal.value = false;
 };
 
+const showCancelModal = ref(false);
+const doCancel = () => {
+    router.post(route('faculty.borrowings.cancel', props.borrowing.id));
+    showCancelModal.value = false;
+};
+
 const rejectReason = ref('');
 const rejectRequest = () => { rejectReason.value = ''; showRejectModal.value = true; };
 const doReject = () => {
@@ -316,8 +322,28 @@ const submitDamageReport = () => {
                     Awaiting approval from <span class="font-medium text-gray-700 ml-1">{{ borrowing.faculty?.name }}</span>
                 </div>
             </div>
+
+            <!-- QR/activity requests skip faculty approval, so while the admin
+                 hasn't acted yet the assigned faculty can still withdraw them. -->
+            <div v-if="borrowing.status === 'pending_admin' && isAssignedFaculty" class="flex items-center justify-end">
+                <button
+                    @click="showCancelModal = true"
+                    class="inline-flex items-center rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 transition-colors"
+                >
+                    Cancel Request
+                </button>
+            </div>
         </div>
 
+        <ConfirmModal
+            :show="showCancelModal"
+            title="Cancel Request"
+            message="Cancel this borrowing request? The equipment goes back to stock and the student will be notified."
+            confirmLabel="Yes, Cancel Request"
+            confirmClass="bg-red-600 hover:bg-red-700"
+            @confirmed="doCancel"
+            @cancelled="showCancelModal = false"
+        />
         <ConfirmModal
             :show="showApproveModal"
             title="Approve Request"

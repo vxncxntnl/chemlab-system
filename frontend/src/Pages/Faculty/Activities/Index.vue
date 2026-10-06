@@ -19,6 +19,9 @@ const statusFilter = ref('');
 const showDeleteModal = ref(false);
 const deleteTargetId = ref<number | null>(null);
 const doDelete = () => { router.delete(route('faculty.activities.destroy', deleteTargetId.value!)); showDeleteModal.value = false; };
+const showCancelModal = ref(false);
+const cancelTargetId = ref<number | null>(null);
+const doCancel = () => { router.post(route('faculty.activities.cancel', cancelTargetId.value!)); showCancelModal.value = false; };
 
 const applyFilters = () => {
     router.get(route('faculty.activities.index'), { status: statusFilter.value }, { preserveState: true, replace: true });
@@ -91,12 +94,17 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                                 <div class="flex items-center gap-3">
                                     <Link :href="route('faculty.activities.show', activity.id)"
                                         class="text-xs text-green-600 hover:text-green-800 font-medium">View</Link>
-                                    <Link v-if="activity.status !== 'expired'" :href="route('faculty.activities.edit', activity.id)"
+                                    <Link v-if="!['expired', 'cancelled'].includes(activity.status)" :href="route('faculty.activities.edit', activity.id)"
                                         class="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</Link>
-                                    <button
+                                    <button v-if="!activity.requests_count"
                                         class="text-xs text-red-600 hover:text-red-800 font-medium"
                                         @click="deleteTargetId = activity.id; showDeleteModal = true">
                                         Delete
+                                    </button>
+                                    <button v-else-if="!['cancelled', 'completed', 'expired'].includes(activity.status)"
+                                        class="text-xs text-red-600 hover:text-red-800 font-medium"
+                                        @click="cancelTargetId = activity.id; showCancelModal = true">
+                                        Cancel
                                     </button>
                                 </div>
                             </td>
@@ -118,5 +126,6 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
             </div>
         </div>
         <ConfirmModal :show="showDeleteModal" title="Delete Activity" message="Are you sure you want to delete this activity?" confirmLabel="Yes, Delete" confirmClass="bg-red-600 hover:bg-red-700" @confirmed="doDelete" @cancelled="showDeleteModal = false" />
+        <ConfirmModal :show="showCancelModal" title="Cancel Activity" message="Requests that haven't been released yet will be cancelled, the equipment goes back to stock, and the students will be notified. The QR codes will stop working. The activity's record is kept." confirmLabel="Yes, Cancel Activity" confirmClass="bg-red-600 hover:bg-red-700" @confirmed="doCancel" @cancelled="showCancelModal = false" />
     </UserLayout>
 </template>

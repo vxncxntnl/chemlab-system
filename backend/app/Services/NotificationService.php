@@ -265,6 +265,28 @@ class NotificationService
         );
     }
 
+    public static function borrowingCancelledByActivity(Borrowing $borrowing, Activity $activity, User $cancelledBy): void
+    {
+        self::sendWithEmail(
+            $borrowing->user,
+            'Request Cancelled — Activity Cancelled',
+            "Your borrow request #{$borrowing->id} has been cancelled because the activity \"{$activity->title}\" was cancelled by {$cancelledBy->name}.",
+            'warning',
+            self::borrowingLink($borrowing)
+        );
+    }
+
+    public static function borrowingCancelledByFaculty(Borrowing $borrowing, User $faculty): void
+    {
+        self::sendWithEmail(
+            $borrowing->user,
+            'Request Cancelled by Faculty',
+            "Your borrow request #{$borrowing->id} has been cancelled by {$faculty->name}.",
+            'warning',
+            self::borrowingLink($borrowing)
+        );
+    }
+
     public static function borrowingCancelled(Borrowing $borrowing): void
     {
         $user = $borrowing->user;

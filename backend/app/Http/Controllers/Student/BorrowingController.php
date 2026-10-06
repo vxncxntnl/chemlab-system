@@ -158,6 +158,14 @@ class BorrowingController extends Controller
         $qr = null;
         $activity = null;
         if (!empty($validated['activity_id'])) {
+            // A form opened before the activity was cancelled can't still
+            // borrow (and get auto-approved) for it.
+            $linked = Activity::find($validated['activity_id']);
+            if ($linked && ($linked->status === 'cancelled' || $linked->isExpired())) {
+                return back()->withErrors(['activity_id' => "The activity \"{$linked->title}\" is no longer active, so you can't borrow for it."]);
+            }
+
+
             $inventoryIds = collect($validated['equipment'])->pluck('inventory_id')->all();
             $qr = ActivityEquipmentQr::where('activity_id', $validated['activity_id'])
                 ->whereIn('equipment_inventory_id', $inventoryIds)

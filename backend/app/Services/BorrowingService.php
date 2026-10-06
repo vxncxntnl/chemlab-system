@@ -422,15 +422,41 @@ class BorrowingService
      * the same reason as reject: a double-click here would otherwise credit
      * the reserved inventory back twice.
      */
-    public function cancelBorrowing(Borrowing $borrowing, int $userId, string $auditLabel): Borrowing
+    public function cancelBorrowing(Borrowing $borrowing, int $userId, string $auditLabel, array $allowedStatuses = ['pending_faculty']): Borrowing
     {
-        return $this->transitionLocked($borrowing, ['pending_faculty'], function (Borrowing $locked) use ($userId, $auditLabel) {
+        return $this->transitionLocked($borrowing, $allowedStatuses, function (Borrowing $locked) use ($userId, $auditLabel) {
             foreach ($locked->borrowingEquipment as $item) {
                 $inventory = EquipmentInventory::find($item->inventory_id);
                 $inventory?->increment('available_quantity', $item->quantity);
             }
             $locked->update(['status' => 'cancelled']);
             AuditLog::log($userId, $auditLabel, 'borrowings', $locked->id);
+        });
+    }
+
+    /**
+     * Requests whose equipment hasn't been handed out yet — the ones an
+     * activity's cancellation can still cancel.
+     */
+    public const UNRELEASED_STATUSES = ['pending_faculty', 'pending_admin', 'approved'];
+
+    /**
+     * Cancels a not-yet-released request because its activity was
+     * cancelled, returning the reserved stock. The reason is stored where
+     * rejection reasons go so admin and student both see why.
+     */
+    public function cancelForActivity(Borrowing $borrowing, int $userId, string $activityTitle): Borrowing
+    {
+        return $this->transitionLocked($borrowing, self::UNRELEASED_STATUSES, function (Borrowing $locked) use ($userId, $activityTitle) {
+            foreach ($locked->borrowingEquipment as $item) {
+                $inventory = EquipmentInventory::find($item->inventory_id);
+                $inventory?->increment('available_quantity', $item->quantity);
+            }
+            $locked->update([
+                'status' => 'cancelled',
+                'rejection_reason' => "The activity \"{$activityTitle}\" was cancelled.",
+            ]);
+            AuditLog::log($userId, 'Cancelled Borrow Request (Activity Cancelled)', 'borrowings', $locked->id);
         });
     }
 
