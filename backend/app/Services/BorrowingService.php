@@ -215,7 +215,7 @@ class BorrowingService
                 throw new InsufficientInventoryException('This item is being requested by someone else right now — please try again in a moment.');
             }
             throw $e;
-        } catch (InsufficientInventoryException $e) {
+        } catch (InsufficientInventoryException | BorrowingLimitExceededException $e) {
             // Nothing was created — no reason to keep blocking this exact
             // resubmission for the full lock TTL.
             $lock->release();
@@ -226,6 +226,18 @@ class BorrowingService
     private function doCreateBorrowing(array $data, array $equipment, int $userId, bool $notifyFaculty): Borrowing
     {
         return DB::transaction(function () use ($data, $equipment, $userId, $notifyFaculty) {
+            // The limit is checked in createBorrowing() for a fast, friendly
+            // error, but two different requests submitted at the same moment
+            // (two tabs, a double tap) could both pass that check. Locking
+            // the borrower's row makes such submissions take turns, and the
+            // recount here sees the other one's request.
+            User::whereKey($userId)->lockForUpdate()->first();
+            if ($this->activeBorrowingCount($userId) >= self::MAX_ACTIVE_BORROWINGS) {
+                throw new BorrowingLimitExceededException(
+                    'You already have ' . self::MAX_ACTIVE_BORROWINGS . ' active borrowing requests. Please wait for one to be returned before submitting a new request.'
+                );
+            }
+
             // Reserve stock FIRST, before creating any records — if this
             // throws, the transaction rolls back and nothing is left behind.
             $this->reserveInventory($equipment, $data['borrow_date'] ?? null, $data['return_date'] ?? null, $userId);

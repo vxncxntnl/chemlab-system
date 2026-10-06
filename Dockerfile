@@ -69,6 +69,7 @@ RUN php artisan storage:link || true
 COPY docker/nginx.conf.template /etc/nginx/nginx-site.conf.template
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
 RUN rm -f /etc/nginx/sites-enabled/default
 
 EXPOSE 10000
