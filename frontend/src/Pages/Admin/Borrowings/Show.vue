@@ -2,7 +2,6 @@
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import BorrowingStatusTracker from '@/Components/BorrowingStatusTracker.vue';
 import BackButton from '@/Components/BackButton.vue';
@@ -34,16 +33,59 @@ const doReject = () => {
 
 const markReturned = () => { showReturnModal.value = true; };
 const doReturn = () => { router.post(route('admin.borrowings.return', props.borrowing.id)); showReturnModal.value = false; };
+
+// Admin can release as a backup when no lab staff is available.
+const showReleaseModal = ref(false);
+const doRelease = () => { router.post(route('admin.borrowings.release', props.borrowing.id)); showReleaseModal.value = false; };
 </script>
 
 <template>
     <AdminLayout>
         <template #header>
-            <div class="flex items-center gap-4">
+            <div class="flex flex-wrap items-center gap-2 sm:gap-4">
                 <h1 class="text-xl font-semibold text-gray-800">Borrowing Details</h1>
                 <BackButton :href="route('admin.borrowings.index')">Back to List</BackButton>
             </div>
         </template>
+
+        <!-- Actions: at the top so they're seen first, stacked full-width on phones -->
+        <div v-if="['pending_admin', 'pending_faculty'].includes(borrowing.status)"
+            class="mb-6 flex flex-col gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-yellow-800">This request is waiting for approval.</p>
+            <div class="flex flex-col gap-2 sm:flex-row sm:gap-3">
+                <button @click="approve"
+                    class="inline-flex w-full items-center justify-center rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-800 transition-colors sm:w-auto">
+                    Approve
+                </button>
+                <button @click="reject"
+                    class="inline-flex w-full items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors sm:w-auto">
+                    Reject
+                </button>
+            </div>
+        </div>
+
+        <div v-else-if="borrowing.status === 'approved'"
+            class="mb-6 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-sm text-blue-800">
+                <p class="font-semibold">Approved — ready for release.</p>
+                <p class="mt-0.5">Usually done by lab staff. You can release it yourself if no lab staff is available.</p>
+            </div>
+            <button @click="showReleaseModal = true"
+                class="inline-flex w-full flex-shrink-0 items-center justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 transition-colors sm:w-auto">
+                Release Equipment
+            </button>
+        </div>
+
+        <div v-else-if="['borrowed', 'overdue'].includes(borrowing.status)"
+            class="mb-6 flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-green-800">
+                The borrower has this equipment<span v-if="borrowing.status === 'overdue'" class="font-semibold text-red-700"> — it is overdue</span>.
+            </p>
+            <button @click="markReturned"
+                class="inline-flex w-full flex-shrink-0 items-center justify-center rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-800 transition-colors sm:w-auto">
+                Mark as Returned
+            </button>
+        </div>
 
         <div class="mb-6">
             <BorrowingStatusTracker :status="borrowing.status" />
@@ -114,23 +156,6 @@ const doReturn = () => { router.post(route('admin.borrowings.return', props.borr
                         <dd class="mt-1 text-sm text-gray-900">{{ borrowing.rejection_reason }}</dd>
                     </div>
                 </dl>
-
-                <!-- Action Buttons -->
-                <div class="mt-6 flex flex-wrap gap-3">
-                    <PrimaryButton v-if="['pending_admin', 'pending_faculty'].includes(borrowing.status)" @click="approve">
-                        Approve
-                    </PrimaryButton>
-                    <button
-                        v-if="['pending_admin', 'pending_faculty'].includes(borrowing.status)"
-                        @click="reject"
-                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                    >
-                        Reject
-                    </button>
-                    <PrimaryButton v-if="['borrowed', 'overdue'].includes(borrowing.status)" @click="markReturned">
-                        Mark as Returned
-                    </PrimaryButton>
-                </div>
             </Card>
         </div>
 
@@ -207,5 +232,29 @@ const doReturn = () => { router.post(route('admin.borrowings.return', props.borr
             @confirmed="doReturn"
             @cancelled="showReturnModal = false"
         />
+        <ConfirmModal
+            :show="showReleaseModal"
+            title="Release Equipment"
+            message="Hand the equipment to the borrower and mark it as borrowed? Check that the person in front of you matches these details:"
+            confirmLabel="Yes, Release"
+            confirmClass="bg-blue-700 hover:bg-blue-800"
+            @confirmed="doRelease"
+            @cancelled="showReleaseModal = false"
+        >
+            <dl class="space-y-1.5 rounded-lg bg-gray-50 p-3 text-sm">
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500">Borrower</dt>
+                    <dd class="text-right font-medium text-gray-900">{{ borrowing.user?.name }}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500">ID</dt>
+                    <dd class="text-right font-mono text-gray-900">{{ borrowing.user?.student_id || borrowing.user?.employee_id || '—' }}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                    <dt class="text-gray-500">Claim code</dt>
+                    <dd class="text-right font-mono text-gray-900 break-all">{{ borrowing.claim_code || '—' }}</dd>
+                </div>
+            </dl>
+        </ConfirmModal>
     </AdminLayout>
 </template>
