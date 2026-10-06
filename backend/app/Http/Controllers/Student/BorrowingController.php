@@ -164,6 +164,11 @@ class BorrowingController extends Controller
             if ($linked && ($linked->status === 'cancelled' || $linked->isExpired())) {
                 return back()->withErrors(['activity_id' => "The activity \"{$linked->title}\" is no longer active, so you can't borrow for it."]);
             }
+            // Same course rule as the QR scan, enforced here too so it can't
+            // be bypassed by submitting an activity_id directly.
+            if ($linked && !$linked->allowsCourse(auth()->user()->course)) {
+                return back()->withErrors(['activity_id' => "The activity \"{$linked->title}\" is only for {$linked->department} students."]);
+            }
 
 
             $inventoryIds = collect($validated['equipment'])->pluck('inventory_id')->all();

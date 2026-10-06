@@ -71,7 +71,7 @@ class QrRosterAndCourseRestrictionTest extends TestCase
         $activity = Activity::create([
             'title' => 'Chem Lab Session',
             'instructor_id' => $instructor->id,
-            'department' => 'Science and Technology',
+            'department' => 'Computer Engineering',
             'activity_date' => now()->addDay(),
             'status' => 'upcoming',
         ]);
@@ -108,7 +108,7 @@ class QrRosterAndCourseRestrictionTest extends TestCase
         $activity = Activity::create([
             'title' => 'Chem Lab Session',
             'instructor_id' => $instructor->id,
-            'department' => 'Science and Technology',
+            'department' => 'Computer Engineering',
             'activity_date' => now()->addDay(),
             'status' => 'upcoming',
         ]);

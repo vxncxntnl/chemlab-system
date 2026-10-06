@@ -64,6 +64,20 @@ class Activity extends Model
             ->whereDate('activity_date', '<', Carbon::yesterday());
     }
 
+    /**
+     * An activity is for students of its department's course (e.g. a
+     * Nursing activity is for Nursing students). Faculty departments and
+     * student courses come from the same program list, so they're compared
+     * directly. An activity with no department set allows any course.
+     */
+    public function allowsCourse(?string $course): bool
+    {
+        $department = trim((string) $this->department);
+
+        return $department === ''
+            || strcasecmp($department, trim((string) $course)) === 0;
+    }
+
     public function isExpired(): bool
     {
         if ($this->status === 'expired') {

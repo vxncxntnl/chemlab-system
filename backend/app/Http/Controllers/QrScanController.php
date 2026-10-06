@@ -97,6 +97,23 @@ class QrScanController extends Controller
         // sign the scan didn't come from the intended group — so skip the
         // roster enrollment and auto-approval shortcut, but still let them
         // land on the borrow form and submit a normal request for review.
+        // A QR shared outside the class (e.g. a Criminology student scanning
+        // a Nursing activity's code) can't be used to borrow at all.
+        if (!$qr->activity->allowsCourse($user->course)) {
+            AuditLog::log(
+                $user->id,
+                'QR Scan Blocked — Different Course',
+                'activity_equipment_qr',
+                $qr->id,
+                null,
+                ['activity_id' => $qr->activity_id, 'activity_department' => $qr->activity->department, 'student_course' => $user->course]
+            );
+
+            return redirect()->route('dashboard')->with('error',
+                "This QR code is only for {$qr->activity->department} students (activity: {$qr->activity->title}). Your course is {$user->course}, so you can't borrow through it."
+            );
+        }
+
         $sameCampus = !$qr->activity->instructor->campus_id
             || $qr->activity->instructor->campus_id === $user->campus_id;
 
