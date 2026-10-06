@@ -5,8 +5,10 @@ import Badge from '@/Components/Badge.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import BorrowingStatusTracker from '@/Components/BorrowingStatusTracker.vue';
 import BackButton from '@/Components/BackButton.vue';
-import { Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import InputError from '@/Components/InputError.vue';
+import { Link, router, useForm } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
 
 const { formatStatus, statusVariant } = useBorrowingStatus();
@@ -31,8 +33,39 @@ const doReject = () => {
     showRejectModal.value = false;
 };
 
-const markReturned = () => { showReturnModal.value = true; };
-const doReturn = () => { router.post(route('admin.borrowings.return', props.borrowing.id)); showReturnModal.value = false; };
+// Same return form lab staff use (good/damaged per item, liability,
+// remarks), so the admin can fully cover when no lab staff is available.
+// Damaged items create a damage report and aren't restored to stock.
+const returnForm = useForm({
+    conditions: {} as Record<string, { good: number; damaged: number }>,
+    remarks: '',
+    liable_party: '',
+    liable_reason: '',
+});
+
+(props.borrowing?.borrowing_equipment ?? []).forEach((item: any) => {
+    returnForm.conditions[item.id] = { good: item.quantity, damaged: 0 };
+});
+
+const hasDamage = computed(() => Object.values(returnForm.conditions).some(c => c.damaged > 0));
+
+const onGoodChange = (itemId: number, totalQty: number) => {
+    const clamped = Math.max(0, Math.min(returnForm.conditions[itemId].good, totalQty));
+    returnForm.conditions[itemId].good = clamped;
+    returnForm.conditions[itemId].damaged = totalQty - clamped;
+};
+
+const onDamagedChange = (itemId: number, totalQty: number) => {
+    const clamped = Math.max(0, Math.min(returnForm.conditions[itemId].damaged, totalQty));
+    returnForm.conditions[itemId].damaged = clamped;
+    returnForm.conditions[itemId].good = totalQty - clamped;
+};
+
+const submitReturn = () => { showReturnModal.value = true; };
+const doReturn = () => {
+    returnForm.post(route('admin.borrowings.return', props.borrowing.id), { preserveScroll: true });
+    showReturnModal.value = false;
+};
 
 // Admin can release as a backup when no lab staff is available.
 const showReleaseModal = ref(false);
@@ -76,15 +109,113 @@ const doRelease = () => { router.post(route('admin.borrowings.release', props.bo
             </button>
         </div>
 
+        <!-- Return form: same as lab staff's, at the top while the equipment is out -->
         <div v-else-if="['borrowed', 'overdue'].includes(borrowing.status)"
-            class="mb-6 flex flex-col gap-3 rounded-xl border border-green-200 bg-green-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p class="text-sm text-green-800">
-                The borrower has this equipment<span v-if="borrowing.status === 'overdue'" class="font-semibold text-red-700"> — it is overdue</span>.
-            </p>
-            <button @click="markReturned"
-                class="inline-flex w-full flex-shrink-0 items-center justify-center rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-800 transition-colors sm:w-auto">
-                Mark as Returned
-            </button>
+            class="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 sm:p-5">
+            <div class="mb-4">
+                <h2 class="text-base font-semibold text-green-900">Return Equipment</h2>
+                <p class="mt-0.5 text-sm text-green-800">
+                    The borrower has this equipment<span v-if="borrowing.status === 'overdue'" class="font-semibold text-red-700"> — it is overdue</span>.
+                    When it comes back, record the condition of each item.
+                </p>
+            </div>
+
+            <form @submit.prevent="submitReturn" class="space-y-4">
+                <!-- Phones: one card per item -->
+                <div class="space-y-3 sm:hidden">
+                    <div v-for="item in borrowing.borrowing_equipment" :key="item.id" class="rounded-lg bg-white p-3 shadow-sm">
+                        <p class="text-sm font-medium text-gray-900">{{ item.equipment?.name }}</p>
+                        <p class="text-xs text-gray-500">{{ item.inventory?.location?.location_name }} · Borrowed: {{ item.quantity }}</p>
+                        <div class="mt-2 grid grid-cols-2 gap-3">
+                            <label class="text-xs font-medium text-green-700">Good
+                                <input type="number" v-model.number="returnForm.conditions[item.id].good" min="0" :max="item.quantity"
+                                    @change="onGoodChange(item.id, item.quantity)"
+                                    class="mt-1 block w-full rounded-md border-green-300 text-center text-sm shadow-sm focus:border-green-500 focus:ring-green-500" />
+                            </label>
+                            <label class="text-xs font-medium text-red-700">Damaged
+                                <input type="number" v-model.number="returnForm.conditions[item.id].damaged" min="0" :max="item.quantity"
+                                    @change="onDamagedChange(item.id, item.quantity)"
+                                    class="mt-1 block w-full rounded-md border-red-300 text-center text-sm shadow-sm focus:border-red-500 focus:ring-red-500" />
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Larger screens: table -->
+                <div class="hidden overflow-x-auto rounded-lg bg-white sm:block">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Equipment</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Borrowed Qty</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-green-600">Good Qty</th>
+                                <th class="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-red-600">Damaged Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr v-for="item in borrowing.borrowing_equipment" :key="item.id">
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                    {{ item.equipment?.name }}
+                                    <span class="block text-xs text-gray-400">{{ item.inventory?.location?.location_name }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-center text-sm font-semibold text-gray-700">{{ item.quantity }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" v-model.number="returnForm.conditions[item.id].good" min="0" :max="item.quantity"
+                                        @change="onGoodChange(item.id, item.quantity)"
+                                        class="w-20 rounded-md border-green-300 text-center text-sm shadow-sm focus:border-green-500 focus:ring-green-500" />
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <input type="number" v-model.number="returnForm.conditions[item.id].damaged" min="0" :max="item.quantity"
+                                        @change="onDamagedChange(item.id, item.quantity)"
+                                        class="w-20 rounded-md border-red-300 text-center text-sm shadow-sm focus:border-red-500 focus:ring-red-500" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="text-xs text-gray-600">Good + Damaged must equal the borrowed quantity for each item. Damaged items are not restored to available stock, and a damage report is created automatically.</p>
+                <InputError :message="returnForm.errors.conditions" />
+
+                <!-- Incident details — only when something came back damaged -->
+                <div v-if="hasDamage" class="space-y-4 rounded-lg border border-orange-200 bg-orange-50 p-4">
+                    <h3 class="text-sm font-semibold text-orange-800">Incident Report — damaged items detected</h3>
+                    <p class="text-xs text-orange-700">This is used for the official incident report and to notify the faculty and student.</p>
+                    <div>
+                        <InputLabel value="Who is liable for the damage?" />
+                        <select v-model="returnForm.liable_party"
+                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500">
+                            <option value="">— Select liable party —</option>
+                            <option value="student">Student (borrower is responsible)</option>
+                            <option value="faculty">Faculty (instructor in charge is responsible)</option>
+                            <option value="shared">Shared (both student and faculty)</option>
+                        </select>
+                        <InputError :message="returnForm.errors.liable_party" class="mt-1" />
+                    </div>
+                    <div>
+                        <InputLabel value="Reason / Justification" />
+                        <textarea v-model="returnForm.liable_reason" rows="3" maxlength="1000"
+                            placeholder="e.g. Equipment was documented as Good at release but returned cracked."
+                            class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-orange-500 focus:ring-orange-500" />
+                        <InputError :message="returnForm.errors.liable_reason" class="mt-1" />
+                    </div>
+                </div>
+
+                <div>
+                    <InputLabel for="return_remarks" value="Return Remarks (Optional)" />
+                    <textarea id="return_remarks" v-model="returnForm.remarks" rows="2" maxlength="1000"
+                        placeholder="e.g. Returned clean and intact, missing rubber stopper..."
+                        class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-green-500 focus:ring-green-500" />
+                    <InputError :message="returnForm.errors.remarks" class="mt-1" />
+                </div>
+
+                <div class="flex justify-end">
+                    <button type="submit" :disabled="returnForm.processing"
+                        class="inline-flex w-full items-center justify-center rounded-lg bg-green-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-800 transition-colors disabled:opacity-50 sm:w-auto">
+                        Submit Return
+                    </button>
+                </div>
+            </form>
         </div>
 
         <div class="mb-6">
@@ -225,9 +356,9 @@ const doRelease = () => { router.post(route('admin.borrowings.release', props.bo
         </ConfirmModal>
         <ConfirmModal
             :show="showReturnModal"
-            title="Mark as Returned"
-            message="Confirm that all equipment has been returned and inspected?"
-            confirmLabel="Yes, Mark Returned"
+            title="Submit Return"
+            message="Confirm that the equipment has been returned and the good/damaged counts are correct?"
+            confirmLabel="Yes, Submit Return"
             confirmClass="bg-green-600 hover:bg-green-700"
             @confirmed="doReturn"
             @cancelled="showReturnModal = false"

@@ -49,6 +49,39 @@ class AdminReturnValidationTest extends TestCase
         $this->assertSame(5, $inventory->fresh()->available_quantity);
     }
 
+    public function test_admin_can_record_a_damaged_item_like_lab_staff(): void
+    {
+        ['borrowing' => $borrowing, 'inventory' => $inventory, 'item' => $item] = $this->makeBorrowing('borrowed');
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+
+        $this->actingAs($admin)->post("/admin/borrowings/{$borrowing->id}/return", [
+            'conditions'    => [$item->id => ['good' => 0, 'damaged' => 1]],
+            'remarks'       => 'Cracked at the base',
+            'liable_party'  => 'student',
+            'liable_reason' => 'Returned cracked; was good at release.',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('returned', $borrowing->fresh()->status);
+        $this->assertSame('Cracked at the base', $borrowing->fresh()->remarks);
+        $this->assertSame(4, $inventory->fresh()->available_quantity, 'A damaged item is not put back into available stock.');
+        $this->assertDatabaseHas('damage_reports', ['borrowing_id' => $borrowing->id]);
+    }
+
+    public function test_admin_can_record_a_good_return_with_remarks(): void
+    {
+        ['borrowing' => $borrowing, 'inventory' => $inventory, 'item' => $item] = $this->makeBorrowing('overdue');
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+
+        $this->actingAs($admin)->post("/admin/borrowings/{$borrowing->id}/return", [
+            'conditions' => [$item->id => ['good' => 1, 'damaged' => 0]],
+            'remarks'    => 'Returned clean',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('returned', $borrowing->fresh()->status);
+        $this->assertSame(5, $inventory->fresh()->available_quantity);
+        $this->assertDatabaseMissing('damage_reports', ['borrowing_id' => $borrowing->id]);
+    }
+
     public function test_an_already_returned_borrowing_cannot_be_returned_again(): void
     {
         ['borrowing' => $borrowing, 'inventory' => $inventory] = $this->makeBorrowing('returned');
