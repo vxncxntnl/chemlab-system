@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -80,13 +81,15 @@ class Activity extends Model
     }
 
     /**
-     * Activities that are still 'upcoming'/'ongoing' but whose date is more
-     * than a day in the past — i.e. never marked completed/cancelled and stale.
+     * Activities still saved as 'upcoming'/'ongoing' that have ended (same
+     * rule as hasEnded()), so the nightly job can save them as expired.
      */
     public function scopeExpired($query)
     {
         return $query->whereIn('status', ['upcoming', 'ongoing'])
-            ->whereDate('activity_date', '<', Carbon::yesterday());
+            ->where(fn ($q) => $q
+                ->where(fn ($q) => $q->whereNotNull('return_date')->whereDate('return_date', '<', Carbon::today()))
+                ->orWhere(fn ($q) => $q->whereNull('return_date')->whereDate('activity_date', '<', Carbon::yesterday())));
     }
 
     /**
@@ -103,32 +106,42 @@ class Activity extends Model
             || strcasecmp($department, trim((string) $course)) === 0;
     }
 
-    public function isExpired(): bool
+    /**
+     * An activity ends once its return date has passed (the day after it).
+     * Older activities without a return date end two days after their date.
+     */
+    public function hasEnded(): bool
     {
-        if ($this->status === 'expired') {
-            return true;
-        }
-
-        if (!in_array($this->status, ['upcoming', 'ongoing'])) {
-            return false;
-        }
-
-        return Carbon::parse($this->activity_date)->lt(Carbon::yesterday());
+        return $this->return_date
+            ? Carbon::parse($this->return_date)->lt(Carbon::today())
+            : Carbon::parse($this->activity_date)->lt(Carbon::yesterday());
     }
 
     /**
-     * Students can still scan its QR and borrow for it: not cancelled or
-     * expired, and its return date (when set) hasn't passed yet. A student
-     * who scans late — after the borrow date but before the return date —
-     * is still allowed (see borrowDateForNewRequest()).
+     * An upcoming/ongoing activity that has ended reads as 'expired'
+     * everywhere right away — not only after the nightly job saves it.
+     */
+    protected function status(): Attribute
+    {
+        return Attribute::get(fn (?string $value) => in_array($value, ['upcoming', 'ongoing'], true) && $this->hasEnded()
+            ? 'expired'
+            : $value);
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === 'expired';
+    }
+
+    /**
+     * Students can still scan its QR and borrow for it: upcoming or ongoing
+     * (so not ended, cancelled or completed). A student who scans late —
+     * after the borrow date but before the return date has passed — is
+     * still allowed (see borrowDateForNewRequest()).
      */
     public function isOpenForRequests(): bool
     {
-        if ($this->status === 'cancelled' || $this->isExpired()) {
-            return false;
-        }
-
-        return !$this->return_date || !Carbon::parse($this->return_date)->lt(Carbon::today());
+        return in_array($this->status, ['upcoming', 'ongoing'], true);
     }
 
     /**
@@ -147,6 +160,7 @@ class Activity extends Model
     {
         return match (true) {
             $this->status === 'cancelled' => 'This activity was cancelled by your instructor, so its QR code no longer works.',
+            $this->status === 'completed' => "The activity \"{$this->title}\" is already completed, so you can't borrow for it anymore. Please ask your instructor.",
             $this->return_date && Carbon::parse($this->return_date)->lt(Carbon::today()) => "The activity \"{$this->title}\" is already over (its return date has passed), so you can't borrow for it anymore. Please ask your instructor.",
             default => 'This activity has expired — please ask your instructor for a new QR code.',
         };

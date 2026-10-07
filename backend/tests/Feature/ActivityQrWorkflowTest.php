@@ -440,6 +440,48 @@ class ActivityQrWorkflowTest extends TestCase
         $this->assertSame(10, $this->beakers->fresh()->available_quantity);
     }
 
+    public function test_the_activity_shows_expired_the_day_after_its_return_date(): void
+    {
+        // Return date is in 2 days: still upcoming on that day…
+        $this->travelTo(now()->addDays(2)->setTime(23, 0));
+        $this->assertSame('upcoming', $this->activity->fresh()->status);
+        $this->assertTrue($this->activity->fresh()->isOpenForRequests());
+
+        // …expired the next day, right away (before the nightly job saves it).
+        $this->travelTo(now()->addDay()->setTime(8, 0));
+        $this->assertSame('upcoming', $this->activity->fresh()->getRawOriginal('status'));
+        $this->assertSame('expired', $this->activity->fresh()->status);
+
+        $this->activity->students()->attach($this->ana->id);
+        $this->actingAs($this->ana)->get("/student/activities/{$this->activity->id}")
+            ->assertInertia(fn ($page) => $page->where('activity.status', 'expired'));
+        $this->actingAs($this->faculty)->get("/faculty/activities/{$this->activity->id}/edit")
+            ->assertRedirect("/faculty/activities/{$this->activity->id}");
+
+        // The nightly job saves it as expired.
+        $this->artisan('activities:expire')->assertSuccessful();
+        $this->assertSame('expired', $this->activity->fresh()->getRawOriginal('status'));
+    }
+
+    public function test_a_multi_day_activity_stays_open_until_its_return_date(): void
+    {
+        $this->activity->update(['activity_date' => now()->toDateString(), 'return_date' => now()->addDays(5)->toDateString()]);
+        $this->travelTo(now()->addDays(4));
+
+        $this->assertSame('upcoming', $this->activity->fresh()->status, 'Previously this expired 2 days after the borrow date.');
+        $this->actingAs($this->ana)->get($this->qrPath())
+            ->assertRedirect(route('student.borrowings.create', ['activity_id' => $this->activity->id]));
+    }
+
+    public function test_a_completed_activitys_qr_no_longer_takes_requests(): void
+    {
+        $this->activity->update(['status' => 'completed']);
+
+        $this->actingAs($this->ana)->get($this->qrPath())
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('error', 'The activity "Titration Lab" is already completed, so you can\'t borrow for it anymore. Please ask your instructor.');
+    }
+
     public function test_the_admin_gets_a_bell_notification_but_no_email_for_each_qr_request(): void
     {
         $this->actingAs($this->ana)->get($this->qrPath());

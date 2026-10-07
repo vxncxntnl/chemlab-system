@@ -80,6 +80,16 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                     Borrow Equipment
                 </Link>
             </div>
+            <!-- Ended / cancelled / completed: borrowing is closed -->
+            <div v-else class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-5">
+                <p class="text-sm font-semibold text-gray-700">
+                    {{ activity.status === 'cancelled' ? 'This activity was cancelled.' : activity.status === 'completed' ? 'This activity is completed.' : 'This activity has ended.' }}
+                    Borrowing is closed.
+                </p>
+                <p v-if="activity.status === 'expired' && activity.return_date" class="text-xs text-gray-500 mt-0.5">
+                    The return date was {{ new Date(activity.return_date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) }}. Your requests below are still kept.
+                </p>
+            </div>
 
             <!-- My Borrowings for this activity -->
             <div class="bg-white rounded-xl shadow p-6">

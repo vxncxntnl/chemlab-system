@@ -60,7 +60,10 @@ class BorrowingController extends Controller
             ->whereHas('students', fn($q) => $q->where('activity_students.student_id', auth()->id()))
             ->whereIn('status', ['upcoming', 'ongoing'])
             ->orderBy('activity_date')
-            ->get();
+            ->get()
+            // Not ones that ended but weren't saved as expired yet.
+            ->filter(fn (Activity $a) => $a->isOpenForRequests())
+            ->values();
 
         $preselectedInventory = null;
         if ($request->inventory_id) {
