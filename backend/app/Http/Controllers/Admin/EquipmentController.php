@@ -106,7 +106,7 @@ class EquipmentController extends Controller
             // rule, which also accepts SVG — an XML format that can carry an
             // embedded <script>, making it a stored-XSS vector if the file
             // is ever opened directly rather than shown inside an <img>.
-            'image' => 'nullable|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => 'nullable|mimes:jpg,jpeg,png,webp|max:10240', // up to 10 MB (phone photos)
             'inventory' => 'required|array|min:1',
             'inventory.*.campus_id' => 'required|exists:campuses,id',
             'inventory.*.location_id' => 'required|exists:locations,id',
@@ -195,7 +195,7 @@ class EquipmentController extends Controller
             // rule, which also accepts SVG — an XML format that can carry an
             // embedded <script>, making it a stored-XSS vector if the file
             // is ever opened directly rather than shown inside an <img>.
-            'image' => 'nullable|mimes:jpg,jpeg,png,webp|max:2048',
+            'image' => 'nullable|mimes:jpg,jpeg,png,webp|max:10240', // up to 10 MB (phone photos)
         ]);
 
         if ($request->hasFile('image')) {
