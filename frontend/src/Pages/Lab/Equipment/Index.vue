@@ -31,6 +31,10 @@ const applyFilters = () => {
         category: categoryFilter.value,
     }, { preserveState: true });
 };
+
+// Photos whose file is missing (e.g. wiped by a redeploy on free hosting)
+// show the placeholder instead of a broken image.
+const failedImages = ref<string[]>([]);
 </script>
 
 <template>
@@ -85,8 +89,9 @@ const applyFilters = () => {
                         <!-- Image -->
                         <div class="mb-3 h-40 w-full rounded-lg overflow-hidden bg-green-50 border border-green-100">
                             <img
-                                v-if="item.equipment?.image_path"
+                                v-if="item.equipment?.image_path && !failedImages.includes(item.equipment.image_path)"
                                 :src="`/storage/${item.equipment.image_path}`"
+                                @error="failedImages.push(item.equipment.image_path)"
                                 :alt="item.equipment?.name"
                                 class="h-full w-full object-contain p-2"
                             />

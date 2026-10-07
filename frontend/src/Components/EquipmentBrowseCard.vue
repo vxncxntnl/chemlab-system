@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue';
+
 defineProps<{
     item: any;
 }>();
@@ -6,6 +8,10 @@ defineProps<{
 const emit = defineEmits<{
     (e: 'view', item: any): void;
 }>();
+
+// On free hosting an uploaded photo can disappear after a redeploy; show
+// the placeholder instead of a broken image when that happens.
+const imageFailed = ref(false);
 
 const availabilityColor = (item: any) => {
     if (item.available_quantity === 0) return 'text-red-600';
@@ -33,8 +39,9 @@ const availabilityColor = (item: any) => {
         <!-- Thumbnail -->
         <div class="h-32 sm:h-36 bg-green-50 flex items-center justify-center border-b border-green-100 overflow-hidden">
             <img
-                v-if="item.equipment?.image_path"
+                v-if="item.equipment?.image_path && !imageFailed"
                 :src="`/storage/${item.equipment.image_path}`"
+                @error="imageFailed = true"
                 :alt="item.equipment.name"
                 class="h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
             />

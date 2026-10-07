@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import Modal from '@/Components/Modal.vue';
 import { Link } from '@inertiajs/vue3';
+import { ref } from 'vue';
+
+// Photo URL that failed to load (e.g. wiped by a redeploy on free hosting).
+const failedImage = ref<string | null>(null);
 
 defineProps<{
     show: boolean;
@@ -31,8 +35,9 @@ const progressColor = (item: any) => {
             <!-- Image -->
             <div class="h-56 bg-green-50 flex items-center justify-center border-b border-green-100 overflow-hidden">
                 <img
-                    v-if="item.equipment?.image_path"
+                    v-if="item.equipment?.image_path && failedImage !== item.equipment.image_path"
                     :src="`/storage/${item.equipment.image_path}`"
+                    @error="failedImage = item.equipment.image_path"
                     :alt="item.equipment.name"
                     class="h-full w-full object-contain p-4"
                 />
