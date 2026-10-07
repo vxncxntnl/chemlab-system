@@ -272,21 +272,35 @@ class BorrowingController extends Controller
             return back()->with('error', 'You can only report damage on equipment you currently have.');
         }
 
-        $validated = $request->validate(['borrowing_equipment_id' => 'required|integer']);
+        $validated = $request->validate([
+            'borrowing_equipment_id' => 'required|integer',
+            // Optional one-liner (e.g. "cracked rim") so staff know what to check.
+            'note'                   => 'nullable|string|max:255',
+        ]);
         $item = $borrowing->borrowingEquipment()->with(['equipment', 'inventory.location'])
             ->whereKey($validated['borrowing_equipment_id'])->first();
         if (!$item) {
             return back()->withErrors(['borrowing_equipment_id' => 'That equipment is not part of this borrowing.']);
         }
 
-        // Repeated taps on the same item don't flood the lab staff.
-        if (!Cache::add("damage-reported:{$item->id}", true, now()->addMinutes(30))) {
+        // Already waiting for the lab staff, or already recorded: no repeat alert.
+        if ($item->damage_report_status === 'reported') {
             return back()->with('info', 'The lab staff were already notified about this item. Please bring it to the laboratory.');
         }
+        if ($item->damage_report_status === 'confirmed') {
+            return back()->with('info', 'The lab staff have already recorded damage for this item.');
+        }
+
+        $item->update([
+            'damage_report_status' => 'reported',
+            'damage_reported_at'   => now(),
+            'damage_report_note'   => $validated['note'] ?? null,
+        ]);
 
         AuditLog::log(auth()->id(), 'Reported Possible Damage (Student)', 'borrowings', $borrowing->id, null, [
             'borrowing_equipment_id' => $item->id,
             'equipment_id' => $item->equipment_id,
+            'note' => $validated['note'] ?? null,
         ]);
         NotificationService::possibleDamageReported($borrowing, $item, auth()->user());
 

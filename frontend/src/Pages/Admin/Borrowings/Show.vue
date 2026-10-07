@@ -75,6 +75,14 @@ const doRelease = () => { router.post(route('admin.borrowings.release', props.bo
 // Record a verified damage report for one borrowed item (with optional photo).
 const isOut = computed(() => ['borrowed', 'overdue'].includes(props.borrowing.status));
 const damageItem = ref<{ id: number; name: string; quantity: number } | null>(null);
+
+// Items the student reported as possibly damaged, still waiting for a check.
+const reportedItems = computed(() =>
+    (props.borrowing.borrowing_equipment ?? []).filter((i: any) => i.damage_report_status === 'reported')
+);
+const markNoDamage = (itemId: number) => {
+    router.post(route('admin.borrowings.no-damage', props.borrowing.id), { borrowing_equipment_id: itemId }, { preserveScroll: true });
+};
 </script>
 
 <template>
@@ -296,6 +304,10 @@ const damageItem = ref<{ id: number; name: string; quantity: number } | null>(nu
         </div>
 
         <!-- Equipment List -->
+        <div v-if="reportedItems.length" class="mt-6 rounded-xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-900">
+            <p class="font-semibold">⚠ The borrower reported possible damage on {{ reportedItems.length === 1 ? 'an item' : reportedItems.length + ' items' }}.</p>
+            <p class="mt-0.5">Check the item when they bring it in, then use <strong>Record Damage</strong> or <strong>No Damage Found</strong> on the highlighted row below.</p>
+        </div>
         <Card title="Equipment Items" class="mt-6">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -310,7 +322,8 @@ const damageItem = ref<{ id: number; name: string; quantity: number } | null>(nu
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
-                        <tr v-for="item in borrowing.borrowing_equipment" :key="item.id">
+                        <tr v-for="item in borrowing.borrowing_equipment" :key="item.id"
+                            :class="{ 'bg-yellow-50': item.damage_report_status === 'reported' }">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {{ item.equipment?.name }}
                             </td>
@@ -327,11 +340,25 @@ const damageItem = ref<{ id: number; name: string; quantity: number } | null>(nu
                                 <Badge v-if="item.condition_on_return" variant="info">{{ item.condition_on_return }}</Badge>
                                 <span v-else class="text-gray-400">-</span>
                             </td>
-                            <td v-if="isOut" class="px-6 py-4 whitespace-nowrap text-right">
-                                <button type="button" @click="damageItem = { id: item.id, name: item.equipment?.name, quantity: item.quantity }"
-                                    class="inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50">
-                                    Record Damage
-                                </button>
+                            <td v-if="isOut" class="px-6 py-4 text-right">
+                                <div class="flex flex-col items-end gap-1.5">
+                                    <template v-if="item.damage_report_status === 'reported'">
+                                        <span class="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-800">⚠ Student reported damage</span>
+                                        <span v-if="item.damage_report_note" class="max-w-[16rem] text-xs text-gray-600">"{{ item.damage_report_note }}"</span>
+                                    </template>
+                                    <span v-else-if="item.damage_report_status === 'confirmed'" class="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Damage recorded</span>
+                                    <span v-else-if="item.damage_report_status === 'no_damage'" class="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Checked — no damage</span>
+                                    <div class="flex flex-wrap justify-end gap-2">
+                                        <button v-if="item.damage_report_status === 'reported'" type="button" @click="markNoDamage(item.id)"
+                                            class="inline-flex items-center whitespace-nowrap rounded-lg border border-green-300 bg-white px-3 py-1.5 text-sm font-semibold text-green-700 hover:bg-green-50">
+                                            No Damage Found
+                                        </button>
+                                        <button type="button" @click="damageItem = { id: item.id, name: item.equipment?.name, quantity: item.quantity }"
+                                            class="inline-flex items-center whitespace-nowrap rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50">
+                                            Record Damage
+                                        </button>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     </tbody>

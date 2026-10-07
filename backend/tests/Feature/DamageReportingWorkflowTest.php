@@ -56,9 +56,90 @@ class DamageReportingWorkflowTest extends TestCase
         $this->burnerLine = BorrowingEquipment::create(['borrowing_id' => $this->borrowing->id, 'equipment_id' => $burner->id, 'inventory_id' => $burners->id, 'quantity' => 1, 'condition_on_borrow' => 'good']);
     }
 
-    private function studentReports(BorrowingEquipment $line)
+    private function studentReports(BorrowingEquipment $line, ?string $note = null)
     {
-        return $this->actingAs($this->student)->post("/student/borrowings/{$this->borrowing->id}/report-damage", ['borrowing_equipment_id' => $line->id]);
+        return $this->actingAs($this->student)->post("/student/borrowings/{$this->borrowing->id}/report-damage", ['borrowing_equipment_id' => $line->id, 'note' => $note]);
+    }
+
+    // ── Status tracking ──────────────────────────────────────────────────
+
+    public function test_the_report_is_tracked_on_the_item_with_the_optional_note(): void
+    {
+        $this->studentReports($this->beakerLine, 'cracked rim')->assertSessionHas('success');
+
+        $line = $this->beakerLine->fresh();
+        $this->assertSame('reported', $line->damage_report_status);
+        $this->assertNotNull($line->damage_reported_at);
+        $this->assertSame('cracked rim', $line->damage_report_note);
+        $this->assertNull($this->burnerLine->fresh()->damage_report_status, 'Only the reported item.');
+        $this->assertStringContainsString('cracked rim', UserNotification::where('user_id', $this->labStaff->id)->value('message'));
+    }
+
+    public function test_the_lab_staff_list_flags_requests_with_a_pending_damage_report(): void
+    {
+        $this->studentReports($this->beakerLine)->assertSessionHas('success');
+
+        $this->actingAs($this->labStaff)->get('/lab/borrowings')
+            ->assertInertia(fn ($page) => $page->where('borrowings.data.0.has_damage_report', true));
+
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->actingAs($admin)->get('/admin/borrowings')
+            ->assertInertia(fn ($page) => $page->where('borrowings.data.0.has_damage_report', true));
+    }
+
+    public function test_recording_damage_marks_the_item_confirmed(): void
+    {
+        $this->studentReports($this->beakerLine)->assertSessionHas('success');
+        $this->labRecords($this->labStaff, 'lab', ['borrowing_equipment_id' => $this->beakerLine->id, 'quantity' => 1, 'description' => 'Cracked'])->assertSessionHasNoErrors();
+
+        $this->assertSame('confirmed', $this->beakerLine->fresh()->damage_report_status);
+        $this->studentReports($this->beakerLine)->assertSessionHas('info'); // can't re-report a confirmed item
+    }
+
+    public function test_no_damage_found_closes_the_report_and_notifies_the_student(): void
+    {
+        $this->studentReports($this->beakerLine)->assertSessionHas('success');
+
+        $this->actingAs($this->labStaff)->post("/lab/borrowings/{$this->borrowing->id}/no-damage", ['borrowing_equipment_id' => $this->beakerLine->id])
+            ->assertSessionHas('success');
+
+        $this->assertSame('no_damage', $this->beakerLine->fresh()->damage_report_status);
+        $this->assertSame(0, DamageReport::count());
+        $this->assertDatabaseHas('user_notifications', ['user_id' => $this->student->id, 'title' => 'Equipment Checked — No Damage Found']);
+
+        // Nothing pending anymore, so it can't be dismissed twice…
+        $this->actingAs($this->labStaff)->post("/lab/borrowings/{$this->borrowing->id}/no-damage", ['borrowing_equipment_id' => $this->beakerLine->id])
+            ->assertSessionHas('error');
+        // …but the student can report it again if something new happens.
+        $this->studentReports($this->beakerLine)->assertSessionHas('success');
+    }
+
+    public function test_no_damage_found_respects_campus_and_works_for_the_admin(): void
+    {
+        $this->studentReports($this->beakerLine)->assertSessionHas('success');
+        $outsider = User::factory()->create(['role' => 'lab_staff', 'status' => 'active', 'campus_id' => Campus::create(['campus_name' => 'Iligan'])->id]);
+        $this->actingAs($outsider)->post("/lab/borrowings/{$this->borrowing->id}/no-damage", ['borrowing_equipment_id' => $this->beakerLine->id])->assertForbidden();
+
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->actingAs($admin)->post("/admin/borrowings/{$this->borrowing->id}/no-damage", ['borrowing_equipment_id' => $this->beakerLine->id])
+            ->assertSessionHas('success');
+        $this->assertSame('no_damage', $this->beakerLine->fresh()->damage_report_status);
+    }
+
+    public function test_returning_resolves_pending_reports_from_the_return_condition(): void
+    {
+        $this->studentReports($this->beakerLine)->assertSessionHas('success');
+        $this->studentReports($this->burnerLine)->assertSessionHas('success');
+
+        $this->actingAs($this->labStaff)->post("/lab/borrowings/{$this->borrowing->id}/return", [
+            'conditions' => [
+                $this->beakerLine->id => ['good' => 1, 'damaged' => 1],
+                $this->burnerLine->id => ['good' => 1, 'damaged' => 0],
+            ],
+        ])->assertSessionHas('success');
+
+        $this->assertSame('confirmed', $this->beakerLine->fresh()->damage_report_status);
+        $this->assertSame('no_damage', $this->burnerLine->fresh()->damage_report_status);
     }
 
     private function labRecords(User $as, string $prefix, array $data)

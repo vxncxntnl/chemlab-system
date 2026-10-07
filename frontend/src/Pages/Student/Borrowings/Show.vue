@@ -36,6 +36,7 @@ const props = defineProps<{
         borrowing_equipment: Array<{
             id: number;
             quantity: number;
+            damage_report_status?: 'reported' | 'confirmed' | 'no_damage' | null;
             equipment: {
                 id: number;
                 name: string;
@@ -78,13 +79,24 @@ const doCancel = () => {
 // photo — the student brings the item in and the staff record the report.
 const canReportDamage = ['borrowed', 'overdue'].includes(props.borrowing.status);
 const damageTarget = ref<{ id: number; name: string } | null>(null);
+const damageNote = ref('');
 const doReportDamage = () => {
     if (!damageTarget.value) return;
     router.post(route('student.borrowings.report-damage', props.borrowing.id),
-        { borrowing_equipment_id: damageTarget.value.id },
+        { borrowing_equipment_id: damageTarget.value.id, note: damageNote.value || null },
         { preserveScroll: true });
     damageTarget.value = null;
+    damageNote.value = '';
 };
+
+// Where each item's damage report stands (shown instead of the button).
+const damageStatus: Record<string, { label: string; class: string }> = {
+    reported: { label: 'Damage reported — waiting for lab staff', class: 'bg-yellow-100 text-yellow-800' },
+    confirmed: { label: 'Damage confirmed by lab staff', class: 'bg-red-100 text-red-700' },
+    no_damage: { label: 'Checked — no damage found', class: 'bg-green-100 text-green-700' },
+};
+const showDamageColumn = canReportDamage
+    || props.borrowing.borrowing_equipment.some(i => i.damage_report_status);
 
 </script>
 
@@ -164,7 +176,7 @@ const doReportDamage = () => {
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Category</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Location</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
-                                <th v-if="canReportDamage" class="px-6 py-3"><span class="sr-only">Actions</span></th>
+                                <th v-if="showDamageColumn" class="px-6 py-3"><span class="sr-only">Damage</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 bg-white">
@@ -181,11 +193,18 @@ const doReportDamage = () => {
                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                     {{ item.quantity }}
                                 </td>
-                                <td v-if="canReportDamage" class="whitespace-nowrap px-6 py-4 text-right">
-                                    <button type="button" @click="damageTarget = { id: item.id, name: item.equipment.name }"
-                                        class="inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50">
-                                        Report Damage
-                                    </button>
+                                <td v-if="showDamageColumn" class="px-6 py-4 text-right">
+                                    <div class="flex flex-col items-end gap-1.5">
+                                        <span v-if="item.damage_report_status"
+                                            :class="['rounded-full px-2.5 py-0.5 text-xs font-semibold', damageStatus[item.damage_report_status]?.class]">
+                                            {{ damageStatus[item.damage_report_status]?.label }}
+                                        </span>
+                                        <button v-if="canReportDamage && (!item.damage_report_status || item.damage_report_status === 'no_damage')"
+                                            type="button" @click="damageTarget = { id: item.id, name: item.equipment.name }"
+                                            class="inline-flex items-center whitespace-nowrap rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50">
+                                            Report Damage
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>
@@ -244,7 +263,11 @@ const doReportDamage = () => {
             confirmLabel="Yes, Notify Lab Staff"
             confirmClass="bg-red-600 hover:bg-red-700"
             @confirmed="doReportDamage"
-            @cancelled="damageTarget = null"
-        />
+            @cancelled="damageTarget = null; damageNote = ''"
+        >
+            <label for="damage-note" class="block text-xs font-medium text-gray-500 mb-1">What's wrong? (optional)</label>
+            <input id="damage-note" v-model="damageNote" type="text" maxlength="255" placeholder="e.g. cracked rim, won't turn on"
+                class="block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-red-500 focus:ring-red-500" />
+        </ConfirmModal>
     </UserLayout>
 </template>

@@ -320,8 +320,9 @@ class NotificationService
         $equipment = $item->equipment?->name ?? 'an item';
         $location = $item->inventory?->location?->location_name;
         $message = "{$student->name} reported that {$equipment} (borrowing #{$borrowing->id}"
-            . ($location ? ", {$location}" : '') . ") may be damaged. "
-            . 'Please check the item when the student brings it to the laboratory, then record a damage report if confirmed.';
+            . ($location ? ", {$location}" : '') . ") may be damaged."
+            . ($item->damage_report_note ? " Student's note: \"{$item->damage_report_note}\"." : '')
+            . ' Please check the item when the student brings it to the laboratory, then record a damage report if confirmed.';
 
         foreach ($recipients as $recipient) {
             self::sendWithEmail(
@@ -332,6 +333,21 @@ class NotificationService
                 $recipient->role === 'admin' ? "/admin/borrowings/{$borrowing->id}" : "/lab/borrowings/{$borrowing->id}"
             );
         }
+    }
+
+    /**
+     * Lab staff checked an item the student reported and found it fine.
+     */
+    public static function noDamageFound(Borrowing $borrowing, BorrowingEquipment $item, User $checkedBy): void
+    {
+        $equipment = $item->equipment?->name ?? 'the item';
+        self::sendWithEmail(
+            $borrowing->user,
+            'Equipment Checked — No Damage Found',
+            "{$checkedBy->name} checked {$equipment} from your borrow request #{$borrowing->id} and found no damage. No damage report was filed.",
+            'success',
+            self::borrowingLink($borrowing)
+        );
     }
 
     public static function damageReportFiled(DamageReport $report): void

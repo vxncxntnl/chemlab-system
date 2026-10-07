@@ -25,7 +25,10 @@ class BorrowingController extends Controller
 
     public function index(Request $request)
     {
-        $query = Borrowing::with(['user', 'approver', 'faculty', 'equipment']);
+        $query = Borrowing::with(['user', 'approver', 'faculty', 'equipment'])
+            // Flags requests with an item the student reported as possibly
+            // damaged that the staff haven't checked yet.
+            ->withExists(['borrowingEquipment as has_damage_report' => fn ($q) => $q->where('damage_report_status', 'reported')]);
 
         if ($request->status) {
             // Accepts either a single status or an array of statuses (e.g.
@@ -213,6 +216,20 @@ class BorrowingController extends Controller
         }
 
         return back()->with('success', 'Damage report recorded.');
+    }
+
+    /** The student-reported item was checked and is fine. */
+    public function noDamage(Request $request, Borrowing $borrowing)
+    {
+        $validated = $request->validate(['borrowing_equipment_id' => 'required|integer']);
+
+        try {
+            $this->borrowingService->markNoDamage($borrowing, (int) $validated['borrowing_equipment_id'], auth()->user());
+        } catch (InvalidBorrowingStateException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Marked as checked — no damage found. The student has been notified.');
     }
 
     public function return(Request $request, Borrowing $borrowing)

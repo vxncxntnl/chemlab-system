@@ -114,6 +114,7 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
     Route::post('/borrowings/{borrowing}/release', [LabBorrowingController::class, 'release'])->name('borrowings.release');
     Route::post('/borrowings/{borrowing}/return', [LabBorrowingController::class, 'return'])->name('borrowings.return');
     Route::post('/borrowings/{borrowing}/damage', [LabBorrowingController::class, 'recordDamage'])->name('borrowings.record-damage');
+    Route::post('/borrowings/{borrowing}/no-damage', [LabBorrowingController::class, 'noDamage'])->name('borrowings.no-damage');
 
     // Activity history — this lab staff member's own actions
     Route::get('/history', [LabBorrowingController::class, 'history'])->name('history');
@@ -179,6 +180,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     Route::post('/borrowings/{borrowing}/release', [AdminBorrowingController::class, 'release'])->name('borrowings.release');
     Route::post('/borrowings/{borrowing}/return', [AdminBorrowingController::class, 'return'])->name('borrowings.return');
     Route::post('/borrowings/{borrowing}/damage', [AdminBorrowingController::class, 'recordDamage'])->name('borrowings.record-damage');
+    Route::post('/borrowings/{borrowing}/no-damage', [AdminBorrowingController::class, 'noDamage'])->name('borrowings.no-damage');
 
     // Damage Reports
     Route::get('/damage-reports', [DamageReportController::class, 'index'])->name('damage-reports.index');

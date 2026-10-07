@@ -19,6 +19,9 @@ class BorrowingEquipment extends Model
         'quantity',
         'condition_on_borrow',
         'condition_on_return',
+        'damage_report_status',
+        'damage_reported_at',
+        'damage_report_note',
     ];
 
     public function borrowing(): BelongsTo

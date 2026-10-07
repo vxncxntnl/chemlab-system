@@ -489,6 +489,9 @@ class BorrowingService
             'status'                 => 'pending',
         ]);
 
+        // Closes out the student's "Report Damage" for this item, if any.
+        $item->update(['damage_report_status' => 'confirmed']);
+
         AuditLog::log($userId, 'Recorded Damage Report', 'damage_reports', $report->id, null, [
             'borrowing_id' => $borrowing->id,
             'equipment_id' => $item->equipment_id,
@@ -499,6 +502,30 @@ class BorrowingService
         NotificationService::damageReportFiled($report);
 
         return $report;
+    }
+
+    /**
+     * Lab staff (or admin) checked an item the student reported and found
+     * no damage: close the report out and tell the student.
+     */
+    public function markNoDamage(Borrowing $borrowing, int $borrowingEquipmentId, User $checkedBy): void
+    {
+        $item = $borrowing->borrowingEquipment()->with('equipment')->whereKey($borrowingEquipmentId)->first();
+        if (!$item) {
+            throw ValidationException::withMessages(['borrowing_equipment_id' => 'That equipment is not part of this borrowing.']);
+        }
+        if ($item->damage_report_status !== 'reported') {
+            throw new InvalidBorrowingStateException('This item has no pending damage report from the student.');
+        }
+
+        $item->update(['damage_report_status' => 'no_damage']);
+        AuditLog::log($checkedBy->id, 'Checked Reported Damage — No Damage Found', 'borrowings', $borrowing->id, null, [
+            'borrowing_equipment_id' => $item->id,
+            'equipment_id' => $item->equipment_id,
+        ]);
+
+        $borrowing->loadMissing('user');
+        NotificationService::noDamageFound($borrowing, $item, $checkedBy);
     }
 
     /**
@@ -592,7 +619,7 @@ class BorrowingService
 
                 // Handle damaged items
                 if ($damagedQty > 0) {
-                    $item->update(['condition_on_return' => 'damaged']);
+                    $item->update(['condition_on_return' => 'damaged', 'damage_report_status' => 'confirmed']);
 
                     // Lab staff may already have recorded this item's damage
                     // while it was still borrowed (after the student reported
@@ -624,7 +651,12 @@ class BorrowingService
                     $report->load('borrowing.user', 'borrowing.faculty', 'equipment');
                     NotificationService::damageReportFiled($report);
                 } else {
-                    $item->update(['condition_on_return' => 'good']);
+                    $item->update(array_filter([
+                        'condition_on_return'  => 'good',
+                        // A student's pending report on an item returned in
+                        // good condition is closed out as "no damage".
+                        'damage_report_status' => $item->damage_report_status === 'reported' ? 'no_damage' : null,
+                    ]));
                 }
             }
 

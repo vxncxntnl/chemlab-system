@@ -73,8 +73,11 @@ const columns = [
                 {{ new Date(value).toLocaleDateString() }}
             </template>
 
-            <template #cell-status="{ value }">
-                <Badge :variant="statusVariant(value)">{{ formatStatus(value) }}</Badge>
+            <template #cell-status="{ value, row }">
+                <div class="flex flex-col items-start gap-1">
+                    <Badge :variant="statusVariant(value)">{{ formatStatus(value) }}</Badge>
+                    <span v-if="row.has_damage_report" class="whitespace-nowrap rounded-full bg-yellow-100 px-2 py-0.5 text-[11px] font-semibold text-yellow-800">⚠ Damage reported</span>
+                </div>
             </template>
 
 
