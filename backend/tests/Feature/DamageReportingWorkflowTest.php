@@ -168,6 +168,20 @@ class DamageReportingWorkflowTest extends TestCase
         $this->assertSame(0, DamageReport::count(), 'No damage report until lab staff verify it.');
     }
 
+    public function test_report_damage_also_notifies_the_admin_in_case_no_lab_staff_is_around(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+
+        $this->studentReports($this->beakerLine, 'does not turn on')->assertSessionHas('success');
+
+        $note = UserNotification::where('user_id', $admin->id)->first();
+        $this->assertNotNull($note);
+        $this->assertSame('Possible Damage Reported by Student', $note->title);
+        $this->assertSame("/admin/borrowings/{$this->borrowing->id}", $note->link);
+        Mail::assertSent(BorrowingStatusMail::class, fn ($m) => $m->hasTo($admin->email));
+        $this->assertTrue(UserNotification::where('user_id', $this->labStaff->id)->exists(), 'Lab staff are still notified too.');
+    }
+
     public function test_tapping_again_does_not_notify_twice(): void
     {
         $this->studentReports($this->beakerLine)->assertSessionHas('success');

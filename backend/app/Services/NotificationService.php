@@ -302,20 +302,19 @@ class NotificationService
 
     /**
      * A student tapped "Report Damage" on a borrowed item: alert the lab
-     * staff of the campus that item belongs to (falling back to the admins
-     * if that campus has none) so they can check it when the student
-     * brings it in. No damage report exists yet — staff record it after
-     * verifying.
+     * staff of the campus that item belongs to AND the admins (who cover
+     * when no lab staff is around), so someone can check it when the
+     * student brings it in. No damage report exists yet — staff record it
+     * after verifying.
      */
     public static function possibleDamageReported(Borrowing $borrowing, BorrowingEquipment $item, User $student): void
     {
         $campusId = $item->inventory?->campus_id;
-        $recipients = User::where('role', 'lab_staff')->where('status', 'active')
+        $labStaff = User::where('role', 'lab_staff')->where('status', 'active')
             ->when($campusId, fn ($q) => $q->where('campus_id', $campusId))
             ->get();
-        if ($recipients->isEmpty()) {
-            $recipients = User::where('role', 'admin')->where('status', 'active')->get();
-        }
+        $admins = User::where('role', 'admin')->where('status', 'active')->get();
+        $recipients = $labStaff->merge($admins)->unique('id');
 
         $equipment = $item->equipment?->name ?? 'an item';
         $location = $item->inventory?->location?->location_name;
