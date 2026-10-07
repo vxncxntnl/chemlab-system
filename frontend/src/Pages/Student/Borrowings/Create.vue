@@ -335,16 +335,8 @@ const submit = () => {
                     <!-- Picker panel -->
                     <div v-if="showAddMore" class="border rounded-md p-4 bg-gray-50 space-y-3">
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                            <div v-if="!preselectedInventory">
-                                <InputLabel value="Campus (Optional)" />
-                                <select v-model="selectedCampus"
-                                    class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm">
-                                    <option :value="null">All Campuses</option>
-                                    <option v-for="campus in campuses" :key="campus.id" :value="campus.id">{{ campus.campus_name }}</option>
-                                </select>
-                            </div>
 
-                            <div :class="preselectedInventory ? 'sm:col-span-3' : 'sm:col-span-2'">
+                            <div class="sm:col-span-3">
                                 <InputLabel value="Equipment" />
                                 <select v-model="selectedEquipment"
                                     class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500 text-sm">
