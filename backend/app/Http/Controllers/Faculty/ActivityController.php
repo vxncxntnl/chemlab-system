@@ -131,6 +131,8 @@ class ActivityController extends Controller
 
         return Inertia::render('Faculty/Activities/Show', [
             'activity' => $activity,
+            // The activity's single QR code (only its instructor sees it).
+            'qrUrl' => $activity->qrScanUrl(),
         ]);
     }
 

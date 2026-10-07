@@ -122,7 +122,7 @@ const submit = () => form.put(route('faculty.activities.update', props.activity.
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Equipment for this Activity
-                        <span class="ml-1 text-xs text-gray-400">({{ form.equipment_inventory_ids.length }} selected — a QR code will be generated for each)</span>
+                        <span class="ml-1 text-xs text-gray-400">({{ form.equipment_inventory_ids.length }} selected — all included in one QR code for this activity)</span>
                     </label>
                     <div class="flex gap-2 mb-2">
                         <input v-model="equipmentSearch" type="text" placeholder="Search equipment..."
@@ -153,7 +153,7 @@ const submit = () => form.put(route('faculty.activities.update', props.activity.
                         </label>
                         <p v-if="filteredEquipment.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">No equipment found.</p>
                     </div>
-                    <p class="mt-1.5 text-xs text-gray-400">Removing an item will delete its QR code. Existing QR codes for items kept selected stay the same (already-shared codes keep working).</p>
+                    <p class="mt-1.5 text-xs text-gray-400">The activity keeps the same QR code — students who scan it will get the updated equipment list.</p>
                 </div>
 
                 <div class="flex gap-3 pt-2">

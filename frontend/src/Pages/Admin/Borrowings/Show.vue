@@ -235,6 +235,19 @@ const markNoDamage = (itemId: number) => {
             <BorrowingStatusTracker :status="borrowing.status" />
         </div>
 
+        <!-- Where this request came from (the borrowing's activity link) -->
+        <div class="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+            <span>
+                <span class="text-gray-500">Source:</span>
+                <span v-if="borrowing.activity" class="ml-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">QR Activity</span>
+                <span v-else class="ml-1 font-medium text-gray-800">Walk-in / Direct Request</span>
+            </span>
+            <template v-if="borrowing.activity">
+                <span><span class="text-gray-500">Activity:</span> <span class="font-semibold text-gray-900">{{ borrowing.activity.title }}</span></span>
+                <span><span class="text-gray-500">Instructor:</span> <span class="font-medium text-gray-800">{{ borrowing.activity.instructor?.name ?? '—' }}</span></span>
+            </template>
+        </div>
+
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <!-- Borrower Info -->
             <Card title="Borrower Information">

@@ -6,7 +6,7 @@ import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
-const props = defineProps<{ activity: any }>();
+const props = defineProps<{ activity: any; qrUrl: string }>();
 
 // What each joined student has done for this activity: their latest
 // request's status, or nothing yet.
@@ -133,22 +133,28 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
             </div>
 
             <div class="bg-white rounded-xl shadow p-6 mb-5">
-                <h2 class="text-base font-semibold text-gray-800 mb-1">
-                    Equipment QR Codes
-                    <span class="ml-1 text-xs text-gray-400 font-normal">({{ activity.equipment_qr_codes?.length ?? 0 }})</span>
-                </h2>
+                <h2 class="text-base font-semibold text-gray-800 mb-1">Activity QR Code</h2>
                 <p class="text-xs text-gray-400 mb-4">
-                    Share these QR codes in your class group chat. Scanning links the student straight to a borrow request for that item, automatically tied to this activity — no manual student list needed.
+                    Share this ONE QR code in your class group chat. Students who scan it get a borrow request already filled with all the equipment below, linked to this activity. Each student's request is separate.
                 </p>
-                <div v-if="activity.equipment_qr_codes?.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <div v-for="qr in activity.equipment_qr_codes" :key="qr.id"
-                        class="border border-gray-200 rounded-lg p-4 flex flex-col items-center text-center">
-                        <QrCode :value="qr.scan_url" :size="140" :label="qr.inventory?.equipment?.name" />
-                        <p class="mt-2 text-xs text-gray-400">{{ qr.inventory?.campus?.campus_name }} — {{ qr.inventory?.location?.location_name }}</p>
-                        <p class="mt-1 text-[11px] text-gray-300">{{ qr.scan_count ?? 0 }} scan(s)</p>
+                <div v-if="activity.equipment_qr_codes?.length" class="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
+                    <div class="flex flex-col items-center rounded-lg border border-gray-200 p-4 text-center">
+                        <QrCode :value="qrUrl" :size="180" :label="activity.title" />
+                        <p class="mt-1 text-[11px] text-gray-400">{{ activity.qr_scan_count ?? 0 }} scan(s)</p>
+                    </div>
+                    <div class="w-full flex-1">
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Equipment included ({{ activity.equipment_qr_codes.length }})
+                        </p>
+                        <ul class="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                            <li v-for="qr in activity.equipment_qr_codes" :key="qr.id" class="px-4 py-2.5">
+                                <p class="text-sm font-medium text-gray-800">{{ qr.inventory?.equipment?.name }}</p>
+                                <p class="text-xs text-gray-400">{{ qr.inventory?.campus?.campus_name }} — {{ qr.inventory?.location?.location_name }}</p>
+                            </li>
+                        </ul>
                     </div>
                 </div>
-                <p v-else class="text-sm text-gray-400">No equipment linked yet. Edit this activity to select items — a QR code is generated automatically for each.</p>
+                <p v-else class="text-sm text-gray-400">No equipment selected yet. Edit this activity to choose the equipment — the QR code appears here once equipment is selected.</p>
             </div>
 
             <div class="bg-white rounded-xl shadow p-6">

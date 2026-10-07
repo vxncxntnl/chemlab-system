@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Activity;
 use App\Models\ActivityEquipmentQr;
 use App\Models\AuditLog;
 use App\Models\User;
@@ -11,65 +12,100 @@ use Illuminate\Support\Facades\Auth;
 class QrScanController extends Controller
 {
     /**
-     * A student scans an equipment QR code shared by their instructor.
-     * Unregistered scanners are routed through Google sign-in (PHINMA accounts only)
-     * before landing on a borrow request pre-filled with the scanned item + activity.
+     * A student scans the QR code their instructor shared for a lab
+     * activity. Each activity has ONE QR code (activities.qr_token) that
+     * leads to a borrow request pre-filled with all of the activity's
+     * selected equipment. Older per-item QR codes (activity_equipment_qr)
+     * still work and pre-fill just that item.
+     *
+     * The QR holds only a random token — a reference — never the equipment
+     * list, so scanning can't be used to change what an activity contains.
+     * Guests sign in first; the token survives sign-in via the session.
      */
     public function show(string $token): RedirectResponse
     {
-        $qr = ActivityEquipmentQr::where('token', $token)->firstOrFail();
+        [$activity, $itemQr] = static::resolve($token) ?? abort(404);
 
-        $qr->increment('scan_count');
-        $qr->update(['last_scanned_at' => now()]);
+        if ($itemQr) {
+            $itemQr->increment('scan_count');
+            $itemQr->update(['last_scanned_at' => now()]);
+        } else {
+            $activity->increment('qr_scan_count');
+        }
 
-        if ($qr->activity->isExpired() || $qr->activity->status === 'cancelled') {
-            $message = static::closedMessage($qr);
+        if ($activity->isExpired() || $activity->status === 'cancelled') {
+            $message = static::closedMessage($activity);
 
             return Auth::check()
                 ? redirect()->route('dashboard')->with('error', $message)
-                : redirect('/')->with('error', $message);
+                : redirect()->route('login')->with('status', $message);
         }
 
         session(['qr_token' => $token]);
 
         if (!Auth::check()) {
-            AuditLog::log(
-                $qr->activity->instructor_id,
-                'QR Code Scanned (guest)',
-                'activity_equipment_qr',
-                $qr->id,
-                null,
-                ['activity_id' => $qr->activity_id, 'equipment_inventory_id' => $qr->equipment_inventory_id]
-            );
+            AuditLog::log($activity->instructor_id, 'QR Code Scanned (guest)', 'activities', $activity->id, null, [
+                'activity_id' => $activity->id,
+                'equipment_inventory_id' => $itemQr?->equipment_inventory_id,
+            ]);
 
-            return redirect()->route('auth.google');
+            // Email/password or Google — both continue to the activity after.
+            return redirect()->route('login')
+                ->with('status', "Sign in to borrow equipment for \"{$activity->title}\".");
         }
 
-        return static::redirectAfterScan($qr, Auth::user());
+        return static::redirectAfterScan($token, Auth::user());
     }
 
     /**
-     * Continue the QR redirect chain once a user is authenticated and has a complete profile.
-     * Called from GoogleAuthController and CompleteProfileController so the token survives
-     * the OAuth + profile-completion redirect chain via the session.
+     * A token is either an activity's single QR token or an older per-item
+     * QR token. Returns [Activity, ?ActivityEquipmentQr] or null.
      */
-    /**
-     * A cancelled activity's QR codes stop working just like an expired one's.
-     */
-    private static function closedMessage(ActivityEquipmentQr $qr): string
+    public static function resolve(string $token): ?array
     {
-        return $qr->activity->status === 'cancelled'
-            ? 'This activity was cancelled by your instructor, so its QR code no longer works.'
-            : 'This activity has expired — please ask your instructor for a new QR code.';
+        if ($activity = Activity::where('qr_token', $token)->first()) {
+            return [$activity, null];
+        }
+        if ($itemQr = ActivityEquipmentQr::with('activity')->where('token', $token)->first()) {
+            return $itemQr->activity ? [$itemQr->activity, $itemQr] : null;
+        }
+
+        return null;
     }
 
-    public static function redirectAfterScan(ActivityEquipmentQr $qr, User $user): RedirectResponse
+    /**
+     * After sign-in (password or Google) or completing the profile: if the
+     * user arrived from a QR scan, continue to the activity's borrow form.
+     */
+    public static function continuePendingScan(User $user): ?RedirectResponse
     {
-        if ($qr->activity->isExpired() || $qr->activity->status === 'cancelled') {
+        $token = session('qr_token');
+        if (!$token) {
+            return null;
+        }
+        if (!static::resolve($token)) {
             session()->forget('qr_token');
 
-            return redirect()->route('dashboard')
-                ->with('error', static::closedMessage($qr));
+            return null;
+        }
+
+        return static::redirectAfterScan($token, $user);
+    }
+
+    public static function redirectAfterScan(string $token, User $user): RedirectResponse
+    {
+        $resolved = static::resolve($token);
+        if (!$resolved) {
+            session()->forget('qr_token');
+
+            return redirect()->route('dashboard')->with('error', 'That QR code is no longer valid.');
+        }
+        [$activity, $itemQr] = $resolved;
+
+        if ($activity->isExpired() || $activity->status === 'cancelled') {
+            session()->forget('qr_token');
+
+            return redirect()->route('dashboard')->with('error', static::closedMessage($activity));
         }
 
         if (!$user->campus_id || !$user->student_id || !$user->course) {
@@ -78,68 +114,65 @@ class QrScanController extends Controller
 
         session()->forget('qr_token');
 
-        AuditLog::log(
-            $user->id,
-            'Borrow via QR Code',
-            'activity_equipment_qr',
-            $qr->id,
-            null,
-            ['activity_id' => $qr->activity_id, 'equipment_inventory_id' => $qr->equipment_inventory_id]
-        );
+        AuditLog::log($user->id, 'Borrow via QR Code', 'activities', $activity->id, null, [
+            'activity_id' => $activity->id,
+            'equipment_inventory_id' => $itemQr?->equipment_inventory_id,
+        ]);
 
         if ($user->role !== 'student') {
             return redirect()->route('dashboard');
         }
 
-        // A QR code is meant for the instructor's own class, shared in that
-        // class's group chat. If it gets forwarded outside that circle, a
-        // student on a different campus than the instructor is the clearest
-        // sign the scan didn't come from the intended group — so skip the
-        // roster enrollment and auto-approval shortcut, but still let them
-        // land on the borrow form and submit a normal request for review.
         // A QR shared outside the class (e.g. a Criminology student scanning
         // a Nursing activity's code) can't be used to borrow at all.
-        if (!$qr->activity->allowsCourse($user->course)) {
-            AuditLog::log(
-                $user->id,
-                'QR Scan Blocked — Different Course',
-                'activity_equipment_qr',
-                $qr->id,
-                null,
-                ['activity_id' => $qr->activity_id, 'activity_department' => $qr->activity->department, 'student_course' => $user->course]
-            );
+        if (!$activity->allowsCourse($user->course)) {
+            AuditLog::log($user->id, 'QR Scan Blocked — Different Course', 'activities', $activity->id, null, [
+                'activity_id' => $activity->id,
+                'activity_department' => $activity->department,
+                'student_course' => $user->course,
+            ]);
 
             return redirect()->route('dashboard')->with('error',
-                "This QR code is only for {$qr->activity->department} students (activity: {$qr->activity->title}). Your course is {$user->course}, so you can't borrow through it."
+                "This QR code is only for {$activity->department} students (activity: {$activity->title}). Your course is {$user->course}, so you can't borrow through it."
             );
         }
 
-        $sameCampus = !$qr->activity->instructor->campus_id
-            || $qr->activity->instructor->campus_id === $user->campus_id;
+        // A student on a different campus than the instructor is the clearest
+        // sign the QR left its intended class: no roster enrollment and no
+        // activity link (so no auto-approval) — they can still make a normal
+        // request for review.
+        $sameCampus = !$activity->instructor?->campus_id
+            || $activity->instructor->campus_id === $user->campus_id;
 
         if (!$sameCampus) {
-            AuditLog::log(
-                $user->id,
-                'QR Scanned Outside Instructor Campus',
-                'activity_equipment_qr',
-                $qr->id,
-                null,
-                ['activity_id' => $qr->activity_id, 'equipment_inventory_id' => $qr->equipment_inventory_id]
-            );
-
-            return redirect()->route('student.borrowings.create', [
-                'inventory_id' => $qr->equipment_inventory_id,
+            AuditLog::log($user->id, 'QR Scanned Outside Instructor Campus', 'activities', $activity->id, null, [
+                'activity_id' => $activity->id,
+                'equipment_inventory_id' => $itemQr?->equipment_inventory_id,
             ]);
+
+            return redirect()->route('student.borrowings.create', array_filter([
+                'inventory_id' => $itemQr?->equipment_inventory_id,
+            ]));
         }
 
-        // Scanning a QR is the activity-linked equivalent of being added to the
-        // class roster — enroll the student so the activity appears in their
-        // borrow form and faculty can track who borrowed what for it.
-        $qr->activity->students()->syncWithoutDetaching([$user->id]);
+        // Scanning enrolls the student in the activity (the class roster).
+        $activity->students()->syncWithoutDetaching([$user->id]);
 
-        return redirect()->route('student.borrowings.create', [
-            'inventory_id' => $qr->equipment_inventory_id,
-            'activity_id'  => $qr->activity_id,
-        ]);
+        // Activity QR: the form is pre-filled with all of the activity's
+        // equipment. Old per-item QR: just that item.
+        return redirect()->route('student.borrowings.create', array_filter([
+            'inventory_id' => $itemQr?->equipment_inventory_id,
+            'activity_id'  => $activity->id,
+        ]));
+    }
+
+    /**
+     * A cancelled activity's QR code stops working just like an expired one's.
+     */
+    private static function closedMessage(Activity $activity): string
+    {
+        return $activity->status === 'cancelled'
+            ? 'This activity was cancelled by your instructor, so its QR code no longer works.'
+            : 'This activity has expired — please ask your instructor for a new QR code.';
     }
 }

@@ -120,7 +120,7 @@ const submit = () => form.post(route('faculty.activities.store'));
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Equipment for this Activity
-                        <span class="ml-1 text-xs text-gray-400">({{ form.equipment_inventory_ids.length }} selected — a QR code will be generated for each)</span>
+                        <span class="ml-1 text-xs text-gray-400">({{ form.equipment_inventory_ids.length }} selected — all included in one QR code for this activity)</span>
                     </label>
                     <div class="flex gap-2 mb-2">
                         <input v-model="equipmentSearch" type="text" placeholder="Search equipment..."
@@ -151,7 +151,7 @@ const submit = () => form.post(route('faculty.activities.store'));
                         </label>
                         <p v-if="filteredEquipment.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">No equipment found.</p>
                     </div>
-                    <p class="mt-1.5 text-xs text-gray-400">Students can scan the generated QR codes to borrow these items directly for this activity — no need to add them manually.</p>
+                    <p class="mt-1.5 text-xs text-gray-400">After saving, this activity gets ONE QR code. Students who scan it get a borrow request already filled with these items.</p>
                 </div>
 
                 <div class="flex gap-3 pt-2">

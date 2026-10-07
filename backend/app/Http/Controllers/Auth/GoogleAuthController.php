@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\QrScanController;
-use App\Models\ActivityEquipmentQr;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -104,12 +103,8 @@ class GoogleAuthController extends Controller
         $request->session()->regenerate();
 
         // Continue a QR-code scan that brought the user here to sign in
-        if ($token = session('qr_token')) {
-            $qr = ActivityEquipmentQr::where('token', $token)->first();
-            if ($qr) {
-                return QrScanController::redirectAfterScan($qr, $user);
-            }
-            session()->forget('qr_token');
+        if ($continue = QrScanController::continuePendingScan($user)) {
+            return $continue;
         }
 
         // New Google user — redirect to complete profile

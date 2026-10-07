@@ -25,7 +25,7 @@ class BorrowingController extends Controller
 
     public function index(Request $request)
     {
-        $query = Borrowing::with(['user', 'approver', 'faculty', 'equipment'])
+        $query = Borrowing::with(['user', 'approver', 'faculty', 'equipment', 'activity:id,title'])
             // Flags requests with an item the student reported as possibly
             // damaged that the staff haven't checked yet.
             ->withExists(['borrowingEquipment as has_damage_report' => fn ($q) => $q->where('damage_report_status', 'reported')]);
@@ -122,6 +122,7 @@ class BorrowingController extends Controller
             'borrowingEquipment.inventory.campus',
             'borrowingEquipment.inventory.location',
             'damageReports',
+            'activity.instructor:id,name',
         ]);
 
         return Inertia::render('Admin/Borrowings/Show', [

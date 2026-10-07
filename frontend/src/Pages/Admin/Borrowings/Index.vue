@@ -30,6 +30,7 @@ const statusFilter = ref('');
 const columns = [
     { key: 'user', label: 'Borrower' },
     { key: 'faculty', label: 'Faculty / Instructor' },
+    { key: 'source', label: 'Activity / Source' },
     { key: 'borrow_date', label: 'Borrow Date' },
     { key: 'return_date', label: 'Return Date' },
     { key: 'status', label: 'Status' },
@@ -113,6 +114,14 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString();
             </template>
             <template #cell-return_date="{ value }">
                 {{ formatDate(value) }}
+            </template>
+            <template #cell-source="{ row }">
+                <!-- From the borrowing's real activity link: QR activity vs. a direct request -->
+                <div v-if="row.activity" class="flex flex-col items-start gap-0.5">
+                    <span class="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">QR Activity</span>
+                    <span class="text-xs text-gray-700">{{ row.activity.title }}</span>
+                </div>
+                <span v-else class="text-xs text-gray-500">Walk-in / Direct Request</span>
             </template>
             <template #cell-status="{ value, row }">
                 <div class="flex flex-col items-start gap-1">

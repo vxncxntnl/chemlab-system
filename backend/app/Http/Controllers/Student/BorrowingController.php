@@ -71,6 +71,14 @@ class BorrowingController extends Controller
 
         $activeBorrowingCount = $this->borrowingService->activeBorrowingCount($user->id);
 
+        // Came from an activity's QR code (and joined it): pre-fill the form
+        // with ALL of the activity's equipment, unless an old per-item QR
+        // pre-selected a single item.
+        $preselectedActivity = $request->activity_id ? $activities->firstWhere('id', (int) $request->activity_id) : null;
+        $activityInventoryIds = $preselectedActivity && !$preselectedInventory
+            ? $preselectedActivity->selectedInventoryIds()
+            : [];
+
         return Inertia::render('Student/Borrowings/Create', [
             'campuses' => $campuses,
             'availableInventory' => $availableInventory,
@@ -78,6 +86,7 @@ class BorrowingController extends Controller
             'activities' => $activities,
             'preselectedInventory' => $preselectedInventory,
             'preselectedActivityId' => $request->activity_id ? (int) $request->activity_id : null,
+            'activityInventoryIds' => $activityInventoryIds,
             'activeBorrowingCount' => $activeBorrowingCount,
             'maxActiveBorrowings' => BorrowingService::MAX_ACTIVE_BORROWINGS,
         ]);
@@ -171,13 +180,39 @@ class BorrowingController extends Controller
                 return back()->withErrors(['activity_id' => "The activity \"{$linked->title}\" is only for {$linked->department} students."]);
             }
 
+            // Only students who joined the activity (by scanning its QR) can
+            // borrow for it.
+            if ($linked && !$linked->students()->where('activity_students.student_id', auth()->id())->exists()) {
+                return back()->withErrors(['activity_id' => "Scan the QR code for \"{$linked->title}\" from your instructor to borrow for this activity."]);
+            }
 
-            $inventoryIds = collect($validated['equipment'])->pluck('inventory_id')->all();
-            $qr = ActivityEquipmentQr::where('activity_id', $validated['activity_id'])
-                ->whereIn('equipment_inventory_id', $inventoryIds)
-                ->first();
-            if ($qr) {
-                $activity = Activity::find($validated['activity_id']);
+            if ($linked) {
+                // The equipment list is the instructor's: a request for the
+                // activity can only include equipment they selected for it
+                // (students may change quantities or leave items out).
+                $selected = $linked->selectedInventoryIds();
+                $requested = collect($validated['equipment'])->pluck('inventory_id')->map(fn ($id) => (int) $id);
+                if ($selected && $requested->diff($selected)->isNotEmpty()) {
+                    return back()->withErrors(['equipment' => "A request for \"{$linked->title}\" can only include the equipment your instructor selected for it."]);
+                }
+
+                // One active request per student per activity, so scanning the
+                // QR again (or a double submit) can't create duplicates.
+                $existing = Borrowing::where('user_id', auth()->id())
+                    ->where('activity_id', $linked->id)
+                    ->whereIn('status', ['pending_faculty', 'pending_admin', 'approved', 'borrowed', 'overdue'])
+                    ->first();
+                if ($existing) {
+                    return back()->withErrors(['activity_id' => "You already have a request for \"{$linked->title}\" (#{$existing->id}). You can view it in My Borrowings."]);
+                }
+
+                // The instructor pre-approved this equipment by selecting it
+                // for the activity, so a request made entirely of it skips
+                // the faculty step.
+                if ($selected && $requested->diff($selected)->isEmpty()) {
+                    $qr = true;
+                    $activity = $linked;
+                }
             }
         }
 
@@ -205,7 +240,6 @@ class BorrowingController extends Controller
 
             AuditLog::log(auth()->id(), 'Borrow Request Auto-approved via Activity QR', 'borrowings', $borrowing->id, null, [
                 'activity_id' => $activity->id,
-                'qr_token' => $qr->token,
             ]);
 
             $borrowing->load('borrowingEquipment.equipment', 'faculty');

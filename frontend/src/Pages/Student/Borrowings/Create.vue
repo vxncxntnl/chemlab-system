@@ -37,15 +37,23 @@ const props = defineProps<{
         location: { location_name: string };
     } | null;
     preselectedActivityId?: number | null;
+    // All equipment of the activity whose QR code was scanned.
+    activityInventoryIds?: number[];
     activeBorrowingCount: number;
     maxActiveBorrowings: number;
 }>();
 
 const atBorrowingLimit = computed(() => props.activeBorrowingCount >= props.maxActiveBorrowings);
 
+// Scanned an activity QR: start with all of the activity's equipment (that
+// is in stock), quantity 1 each. An older per-item QR pre-selects one item.
+const activityItemIds = props.activityInventoryIds ?? [];
 const initialEquipment = props.preselectedInventory
     ? [{ equipment_id: props.preselectedInventory.equipment_id, inventory_id: props.preselectedInventory.id, quantity: 1 }]
-    : [];
+    : props.availableInventory
+        .filter(i => activityItemIds.includes(i.id) && i.available_quantity > 0)
+        .map(i => ({ equipment_id: i.equipment_id, inventory_id: i.id, quantity: 1 }));
+const unavailableActivityItems = activityItemIds.length - initialEquipment.length;
 
 const form = useForm({
     borrow_date: '',
@@ -119,6 +127,8 @@ const clampQty = () => {
 const dropdownInventory = computed(() => {
     return props.availableInventory
         .filter(i => !selectedCampus.value || i.campus_id === selectedCampus.value)
+        // A request for the scanned activity can only use its equipment.
+        .filter(i => !activityItemIds.length || Number(form.activity_id) !== props.preselectedActivityId || activityItemIds.includes(i.id))
         .map(i => ({ ...i, alreadyAdded: addedInventoryIds.value.has(i.id) }));
 });
 
@@ -195,6 +205,24 @@ const submit = () => {
             <p class="text-sm text-amber-800">
                 You already have {{ activeBorrowingCount }} active borrowing requests (the maximum is {{ maxActiveBorrowings }}). Please wait for one to be returned before submitting a new request.
             </p>
+        </div>
+
+        <!-- Activity QR banner: all of the activity's equipment is pre-filled -->
+        <div v-if="activityItemIds.length && preselectedActivityId" class="mb-4 rounded-md bg-green-50 border border-green-200 p-4 flex items-start gap-3">
+            <svg class="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <div class="text-sm">
+                <p class="font-semibold text-green-800">
+                    {{ activities.find(a => a.id === preselectedActivityId)?.title ?? 'Your activity' }}
+                </p>
+                <p class="mt-0.5 text-green-700">
+                    Scanned from your instructor's QR code. The equipment for this activity has been added below. Check the quantities, fill in the details and submit.
+                </p>
+                <p v-if="unavailableActivityItems > 0" class="mt-1 text-amber-700">
+                    {{ unavailableActivityItems }} item(s) for this activity are out of stock right now and were left out.
+                </p>
+            </div>
         </div>
 
         <!-- Pre-selected equipment banner -->

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\QrScanController;
-use App\Models\ActivityEquipmentQr;
 use App\Models\Campus;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
@@ -80,12 +79,8 @@ class CompleteProfileController extends Controller
         }
 
         // Continue a QR-code scan that brought the user here to register
-        if ($token = session('qr_token')) {
-            $qr = ActivityEquipmentQr::where('token', $token)->first();
-            if ($qr) {
-                return QrScanController::redirectAfterScan($qr, $user->fresh());
-            }
-            session()->forget('qr_token');
+        if ($continue = QrScanController::continuePendingScan($user->fresh())) {
+            return $continue;
         }
 
         return redirect()->route('dashboard');

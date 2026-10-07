@@ -54,6 +54,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Signed in after scanning an activity QR: continue to that activity.
+        if ($continue = \App\Http\Controllers\QrScanController::continuePendingScan($user)) {
+            return $continue;
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

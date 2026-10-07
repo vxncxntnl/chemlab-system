@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Activity extends Model
 {
@@ -23,12 +24,36 @@ class Activity extends Model
         'description',
     ];
 
+    // The QR secret is only handed out where it's needed (the instructor's
+    // and admin's activity page), never in general activity listings.
+    protected $hidden = ['qr_token'];
+
     protected function casts(): array
     {
         return [
             'activity_date' => 'date:Y-m-d',
             'return_date' => 'date:Y-m-d',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // One QR code per activity: every activity gets its own random token.
+        static::creating(function (Activity $activity) {
+            $activity->qr_token ??= Str::random(40);
+        });
+    }
+
+    /** The link encoded in the activity's single QR code. */
+    public function qrScanUrl(): string
+    {
+        return url("/qr/{$this->qr_token}");
+    }
+
+    /** Inventory items the instructor selected for this activity. */
+    public function selectedInventoryIds(): array
+    {
+        return $this->equipmentQrCodes()->pluck('equipment_inventory_id')->map(fn ($id) => (int) $id)->all();
     }
 
     // Past activity records should still show who taught them even if that
