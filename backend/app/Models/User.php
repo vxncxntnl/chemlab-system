@@ -34,6 +34,38 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable, SoftDeletes;
 
+    /** Marks an email that was released when its account was deleted. */
+    public const RELEASED_EMAIL_MARKER = '#deleted-';
+
+    /**
+     * A deleted (soft-deleted) account keeps its row for history, but must
+     * not keep holding its email: otherwise that email could never be used
+     * again — "already exists" on sign-up / admin create / faculty add, and
+     * a crash on Google sign-in (which can't see the hidden row, then hits
+     * the unique email index). So on delete the email is renamed to
+     * "original#deleted-{id}" (still readable in history, never a real
+     * address) and the Google link is cleared.
+     */
+    protected static function booted(): void
+    {
+        static::deleted(function (User $user) {
+            if ($user->isForceDeleting()) {
+                return;
+            }
+            $user->forceFill([
+                'email'     => self::releasedEmail($user->email, $user->id),
+                'google_id' => null,
+            ])->saveQuietly();
+        });
+    }
+
+    public static function releasedEmail(string $email, int $id): string
+    {
+        return str_contains($email, self::RELEASED_EMAIL_MARKER)
+            ? $email
+            : $email . self::RELEASED_EMAIL_MARKER . $id;
+    }
+
     protected $fillable = [
         'name',
         'first_name',
