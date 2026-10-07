@@ -32,7 +32,6 @@ const changeCampus = (event: Event) => {
 
 const qty = (value: number | string | null) => Number(value ?? 0);
 const totalUnits = props.equipment.reduce((sum, item) => sum + qty(item.total_quantity), 0);
-const availableUnits = props.equipment.reduce((sum, item) => sum + qty(item.available_quantity), 0);
 </script>
 
 <template>
@@ -63,7 +62,6 @@ const availableUnits = props.equipment.reduce((sum, item) => sum + qty(item.avai
                 <span>Date Generated: <strong class="text-gray-800">{{ new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) }}</strong></span>
                 <span>Total Items: <strong class="text-gray-800">{{ equipment.length }}</strong></span>
                 <span>Total Units: <strong class="text-gray-800">{{ totalUnits }}</strong></span>
-                <span>Available: <strong class="text-gray-800">{{ availableUnits }}</strong></span>
                 <span v-if="filters.category">Category: <strong class="text-gray-800">{{ filters.category }}</strong></span>
                 <span v-if="filters.search">Search: <strong class="text-gray-800">"{{ filters.search }}"</strong></span>
             </div>
@@ -76,9 +74,7 @@ const availableUnits = props.equipment.reduce((sum, item) => sum + qty(item.avai
                     <th>Equipment ID</th>
                     <th>Name</th>
                     <th>Category</th>
-                    <th>Serial #</th>
                     <th class="text-center">Total Qty</th>
-                    <th class="text-center">Available</th>
                     <th>Condition</th>
                     <th>Status</th>
                 </tr>
@@ -88,14 +84,12 @@ const availableUnits = props.equipment.reduce((sum, item) => sum + qty(item.avai
                     <td class="font-mono">{{ item.equipment_code }}</td>
                     <td class="font-medium">{{ item.name }}</td>
                     <td>{{ item.category }}</td>
-                    <td>{{ item.serial_number || 'N/A' }}</td>
                     <td class="text-center font-semibold">{{ qty(item.total_quantity) }}</td>
-                    <td class="text-center">{{ qty(item.available_quantity) }}</td>
                     <td class="capitalize">{{ item.condition }}</td>
                     <td>{{ item.is_available ? 'Available' : 'Unavailable' }}</td>
                 </tr>
                 <tr v-if="equipment.length === 0">
-                    <td colspan="8" class="text-center py-6 text-gray-400">No equipment found.</td>
+                    <td colspan="6" class="text-center py-6 text-gray-400">No equipment found.</td>
                 </tr>
             </tbody>
         </table>
