@@ -24,6 +24,8 @@ const navigation = computed(() => [
     { name: 'My Borrowings',   href: `${prefix.value}.borrowings.index`,   icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4', badge: isFaculty.value ? 'pending_borrowings' : 'active_borrowings' },
     { name: 'New Request',     href: `${prefix.value}.borrowings.create`,  icon: 'M12 4v16m8-8H4' },
     { name: 'History',         href: `${prefix.value}.history`,            icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    // Faculty only: add student accounts.
+    ...(isFaculty.value ? [{ name: 'Students', href: 'faculty.students.index', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' }] : []),
 ]);
 
 const isActive = (routeName: string) => route().current(routeName) || route().current(routeName + '.*');

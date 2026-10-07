@@ -29,6 +29,7 @@ use App\Http\Controllers\Lab\LabInventoryController as LabLabInventoryController
 use App\Http\Controllers\Lab\MaintenanceController as LabMaintenanceController;
 use App\Http\Controllers\Faculty\DashboardController as FacultyDashboardController;
 use App\Http\Controllers\Faculty\BorrowingController as FacultyBorrowingController;
+use App\Http\Controllers\Faculty\StudentController as FacultyStudentController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\BorrowingController as StudentBorrowingController;
@@ -246,6 +247,10 @@ Route::middleware(['auth', 'role:faculty', 'throttle:300,1'])->prefix('faculty')
     Route::post('/borrowings/{borrowing}/reject', [FacultyBorrowingController::class, 'reject'])->name('borrowings.reject');
     Route::post('/borrowings/{borrowing}/report-damage', [FacultyBorrowingController::class, 'reportDamage'])->name('borrowings.report-damage');
     Route::get('/history', [FacultyBorrowingController::class, 'history'])->name('history');
+    // Faculty can add student accounts (the student sets their own password).
+    Route::get('/students', [FacultyStudentController::class, 'index'])->name('students.index');
+    Route::get('/students/create', [FacultyStudentController::class, 'create'])->name('students.create');
+    Route::post('/students', [FacultyStudentController::class, 'store'])->middleware('throttle:20,1')->name('students.store');
 });
 
 // Student Routes

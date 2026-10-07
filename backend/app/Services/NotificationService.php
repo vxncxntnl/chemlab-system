@@ -349,6 +349,22 @@ class NotificationService
         );
     }
 
+    /**
+     * A faculty member created this student's account: tell the student how
+     * to sign in (they set their own password — the faculty never sees it).
+     */
+    public static function studentAccountCreated(User $student, User $faculty): void
+    {
+        self::sendWithEmail(
+            $student,
+            'Your Laboratory Borrowing Account Is Ready',
+            "{$faculty->name} created an account for you in the Science Laboratory Borrowing System. " .
+                'To sign in, open ' . route('login') . ', click "Forgot password?", enter this email address and follow the code sent to you to set your own password. ' .
+                'You can also use "Sign in with Google" with your PHINMA account.',
+            'info'
+        );
+    }
+
     public static function damageReportFiled(DamageReport $report): void
     {
         $borrowing = $report->borrowing;
