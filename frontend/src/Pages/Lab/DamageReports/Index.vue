@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import LabLayout from '@/Layouts/LabLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
@@ -26,7 +27,7 @@ const columns = [
     { key: 'borrower', label: 'Borrower' },
     { key: 'reporter', label: 'Reported By' },
     { key: 'status', label: 'Status' },
-    { key: 'created_at', label: 'Date Reported' },
+    { key: 'created_at', label: 'Date & Time Reported' },
 ];
 
 const getStatusBadge = (status: string) => {
@@ -78,7 +79,7 @@ const applyFilters = () => {
                 <Badge :variant="getStatusBadge(value)" class="capitalize">{{ value?.replace(/_/g, ' ') }}</Badge>
             </template>
             <template #cell-created_at="{ value }">
-                {{ new Date(value).toLocaleDateString() }}
+                {{ formatDateTime(value) }}
             </template>
             <template #actions="{ row }">
                 <Link :href="route('lab.damage-reports.show', row.id)" class="text-green-600 hover:text-green-900">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
@@ -114,8 +115,8 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Date Reported</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ new Date(report.created_at).toLocaleString() }}</dd>
+                        <dt class="text-sm font-medium text-gray-500">Date & Time Reported</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(report.created_at) }}</dd>
                     </div>
                     <div v-if="(report as any).liable_party">
                         <dt class="text-sm font-medium text-gray-500">Liable Party</dt>
@@ -133,7 +134,7 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                     </div>
                     <div v-if="report.resolved_date">
                         <dt class="text-sm font-medium text-gray-500">Resolved Date</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ new Date(report.resolved_date).toLocaleString() }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(report.resolved_date) }}</dd>
                     </div>
                 </dl>
             </Card>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import LabLayout from '@/Layouts/LabLayout.vue';
 import Card from '@/Components/Card.vue';
 import BorrowingStatusTracker from '@/Components/BorrowingStatusTracker.vue';
@@ -206,6 +207,7 @@ const markNoDamage = (itemId: number) => {
                                     <div class="flex flex-col items-end gap-1.5">
                                         <template v-if="item.damage_report_status === 'reported'">
                                             <span class="rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-800">⚠ Student reported damage</span>
+                                            <span v-if="item.damage_reported_at" class="text-xs text-gray-500">Reported {{ formatDateTime(item.damage_reported_at) }}</span>
                                             <span v-if="item.damage_report_note" class="max-w-[16rem] text-xs text-gray-600">"{{ item.damage_report_note }}"</span>
                                         </template>
                                         <span v-else-if="item.damage_report_status === 'confirmed'" class="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Damage recorded</span>

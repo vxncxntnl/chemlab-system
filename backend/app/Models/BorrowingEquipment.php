@@ -24,6 +24,11 @@ class BorrowingEquipment extends Model
         'damage_report_note',
     ];
 
+    protected $casts = [
+        // Sent to the pages with its timezone, so the time shows correctly.
+        'damage_reported_at' => 'datetime',
+    ];
+
     public function borrowing(): BelongsTo
     {
         return $this->belongsTo(Borrowing::class);

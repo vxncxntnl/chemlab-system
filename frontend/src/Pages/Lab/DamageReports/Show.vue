@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import LabLayout from '@/Layouts/LabLayout.vue';
 import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
@@ -98,8 +99,8 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Date Reported</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ new Date(report.created_at).toLocaleString() }}</dd>
+                        <dt class="text-sm font-medium text-gray-500">Date & Time Reported</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(report.created_at) }}</dd>
                     </div>
                     <div class="sm:col-span-2">
                         <dt class="text-sm font-medium text-gray-500">Damage Description</dt>
