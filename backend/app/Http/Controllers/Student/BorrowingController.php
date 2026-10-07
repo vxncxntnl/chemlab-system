@@ -16,6 +16,7 @@ use App\Services\NotificationService;
 use App\Services\BorrowingService;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -256,53 +257,40 @@ class BorrowingController extends Controller
         return back()->with('success', 'Borrowing request cancelled.');
     }
 
+    /**
+     * One tap, no form or photo: tells the lab staff that a specific
+     * borrowed item may be damaged. The student then brings it to the lab,
+     * where staff verify it and record the actual damage report.
+     */
     public function reportDamage(Request $request, Borrowing $borrowing)
     {
         if ($borrowing->user_id !== auth()->id()) {
             abort(403);
         }
 
-        if (!in_array($borrowing->status, ['borrowed', 'overdue'])) {
-            return back()->with('error', 'Cannot report damage for this borrowing.');
+        if (!in_array($borrowing->status, ['borrowed', 'overdue'], true)) {
+            return back()->with('error', 'You can only report damage on equipment you currently have.');
         }
 
-        $validated = $request->validate([
-            'equipment_id' => 'required|exists:equipment,id',
-            'quantity' => 'required|integer|min:1',
-            'description' => 'required|string|max:1000',
-        ]);
-
-        // The equipment must actually be part of THIS borrowing — without
-        // this check, any exists:equipment,id value would be accepted,
-        // letting a report be filed against equipment never borrowed here.
-        $item = $borrowing->borrowingEquipment()->where('equipment_id', $validated['equipment_id'])->first();
+        $validated = $request->validate(['borrowing_equipment_id' => 'required|integer']);
+        $item = $borrowing->borrowingEquipment()->with(['equipment', 'inventory.location'])
+            ->whereKey($validated['borrowing_equipment_id'])->first();
         if (!$item) {
-            return back()->withErrors(['equipment_id' => 'That equipment is not part of this borrowing.']);
+            return back()->withErrors(['borrowing_equipment_id' => 'That equipment is not part of this borrowing.']);
         }
 
-        // Cap at what's actually left to report: borrowed quantity minus
-        // whatever has already been reported damaged for this same item on
-        // this same borrowing, so repeated/duplicate reports can't
-        // cumulatively claim more damaged units than were ever borrowed.
-        $alreadyReported = (int) DamageReport::where('borrowing_id', $borrowing->id)
-            ->where('equipment_id', $validated['equipment_id'])
-            ->sum('quantity');
-        $remaining = $item->quantity - $alreadyReported;
-        if ($validated['quantity'] > $remaining) {
-            return back()->withErrors(['quantity' => "You can report at most {$remaining} more damaged unit(s) for this item."]);
+        // Repeated taps on the same item don't flood the lab staff.
+        if (!Cache::add("damage-reported:{$item->id}", true, now()->addMinutes(30))) {
+            return back()->with('info', 'The lab staff were already notified about this item. Please bring it to the laboratory.');
         }
 
-        DamageReport::create([
-            'borrowing_id' => $borrowing->id,
-            'equipment_id' => $validated['equipment_id'],
-            'quantity' => $validated['quantity'],
-            'equipment_inventory_id' => $item->inventory_id,
-            'reported_by' => auth()->id(),
-            'description' => $validated['description'],
-            'status' => 'pending',
+        AuditLog::log(auth()->id(), 'Reported Possible Damage (Student)', 'borrowings', $borrowing->id, null, [
+            'borrowing_equipment_id' => $item->id,
+            'equipment_id' => $item->equipment_id,
         ]);
+        NotificationService::possibleDamageReported($borrowing, $item, auth()->user());
 
-        return back()->with('success', 'Damage report submitted.');
+        return back()->with('success', "The lab staff have been notified that {$item->equipment?->name} may be damaged. Please bring it to the laboratory so they can check it.");
     }
 
     public function equipment(Request $request)

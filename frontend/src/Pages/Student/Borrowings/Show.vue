@@ -2,14 +2,11 @@
 import UserLayout from '@/Layouts/UserLayout.vue';
 import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import InputError from '@/Components/InputError.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import BorrowingStatusTracker from '@/Components/BorrowingStatusTracker.vue';
 import BackButton from '@/Components/BackButton.vue';
-import { useForm, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
 
 const { formatStatus, statusVariant } = useBorrowingStatus();
@@ -67,20 +64,6 @@ const props = defineProps<{
 }>();
 
 const showCancelModal = ref(false);
-const showDamageForm = ref(false);
-const selectedEquipmentId = ref<number | null>(null);
-
-const damageForm = useForm({
-    equipment_id: '',
-    quantity: 1,
-    description: '',
-});
-
-const selectedEquipmentMaxQuantity = computed(() => {
-    const item = props.borrowing.borrowing_equipment.find(i => i.equipment.id === selectedEquipmentId.value);
-    return item?.quantity ?? 1;
-});
-
 
 const cancelRequest = () => {
     showCancelModal.value = true;
@@ -91,19 +74,16 @@ const doCancel = () => {
     showCancelModal.value = false;
 };
 
-const openDamageForm = (equipmentId: number) => {
-    selectedEquipmentId.value = equipmentId;
-    damageForm.equipment_id = String(equipmentId);
-    showDamageForm.value = true;
-};
-
-const submitDamageReport = () => {
-    damageForm.post(route('student.borrowings.report-damage', props.borrowing.id), {
-        onSuccess: () => {
-            showDamageForm.value = false;
-            damageForm.reset();
-        },
-    });
+// One tap: notifies the lab staff that this item may be damaged. No form or
+// photo — the student brings the item in and the staff record the report.
+const canReportDamage = ['borrowed', 'overdue'].includes(props.borrowing.status);
+const damageTarget = ref<{ id: number; name: string } | null>(null);
+const doReportDamage = () => {
+    if (!damageTarget.value) return;
+    router.post(route('student.borrowings.report-damage', props.borrowing.id),
+        { borrowing_equipment_id: damageTarget.value.id },
+        { preserveScroll: true });
+    damageTarget.value = null;
 };
 
 </script>
@@ -184,7 +164,7 @@ const submitDamageReport = () => {
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Category</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Location</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
-                                <th v-if="borrowing.status === 'borrowed' || borrowing.status === 'overdue'" class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                                <th v-if="canReportDamage" class="px-6 py-3"><span class="sr-only">Actions</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 bg-white">
@@ -201,11 +181,9 @@ const submitDamageReport = () => {
                                 <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                                     {{ item.quantity }}
                                 </td>
-                                <td v-if="borrowing.status === 'borrowed' || borrowing.status === 'overdue'" class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                                    <button
-                                        @click="openDamageForm(item.equipment.id)"
-                                        class="text-red-600 hover:text-red-900"
-                                    >
+                                <td v-if="canReportDamage" class="whitespace-nowrap px-6 py-4 text-right">
+                                    <button type="button" @click="damageTarget = { id: item.id, name: item.equipment.name }"
+                                        class="inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50">
                                         Report Damage
                                     </button>
                                 </td>
@@ -213,6 +191,11 @@ const submitDamageReport = () => {
                         </tbody>
                     </table>
                 </div>
+                <!-- Damage is recorded by lab staff (with a photo), not filed by students. -->
+                <p v-if="borrowing.status === 'borrowed' || borrowing.status === 'overdue'"
+                    class="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                    Noticed damage on an item? Tap <strong>Report Damage</strong> to notify the Laboratory Staff, then bring the item to the laboratory so they can check it.
+                </p>
             </Card>
 
             <!-- Damage Reports -->
@@ -234,50 +217,6 @@ const submitDamageReport = () => {
                 </div>
             </Card>
 
-            <!-- Damage Report Form -->
-            <Card v-if="showDamageForm" title="Report Damage">
-                <form @submit.prevent="submitDamageReport" class="space-y-4">
-                    <div>
-                        <InputLabel for="damage-quantity" value="Damaged Quantity" />
-                        <input
-                            id="damage-quantity"
-                            v-model.number="damageForm.quantity"
-                            type="number"
-                            min="1"
-                            :max="selectedEquipmentMaxQuantity"
-                            class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
-                            required
-                        />
-                        <p class="text-xs text-gray-500 mt-1">You borrowed {{ selectedEquipmentMaxQuantity }} unit(s) of this item.</p>
-                        <InputError :message="damageForm.errors.quantity" class="mt-2" />
-                    </div>
-                    <div>
-                        <InputLabel for="description" value="Damage Description" />
-                        <textarea
-                            id="description"
-                            v-model="damageForm.description"
-                            rows="4"
-                            class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
-                            placeholder="Please describe the damage in detail..."
-                            required
-                        />
-                        <InputError :message="damageForm.errors.description" class="mt-2" />
-                    </div>
-                    <div class="flex justify-end space-x-3">
-                        <button
-                            type="button"
-                            @click="showDamageForm = false"
-                            class="text-gray-600 hover:text-gray-900"
-                        >
-                            Cancel
-                        </button>
-                        <PrimaryButton :disabled="damageForm.processing">
-                            Submit Report
-                        </PrimaryButton>
-                    </div>
-                </form>
-            </Card>
-
             <!-- Actions -->
             <div v-if="borrowing.status === 'pending_faculty'" class="flex items-center justify-end">
                 <button
@@ -297,6 +236,15 @@ const submitDamageReport = () => {
             confirmClass="bg-red-600 hover:bg-red-700"
             @confirmed="doCancel"
             @cancelled="showCancelModal = false"
+        />
+        <ConfirmModal
+            :show="!!damageTarget"
+            title="Report Damage"
+            :message="`Notify the Laboratory Staff that ${damageTarget?.name ?? 'this item'} may be damaged? After this, please bring the item to the laboratory so they can check it.`"
+            confirmLabel="Yes, Notify Lab Staff"
+            confirmClass="bg-red-600 hover:bg-red-700"
+            @confirmed="doReportDamage"
+            @cancelled="damageTarget = null"
         />
     </UserLayout>
 </template>

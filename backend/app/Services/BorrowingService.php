@@ -17,6 +17,8 @@ use App\Models\Reservation;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -447,6 +449,59 @@ class BorrowingService
     }
 
     /**
+     * Lab staff (or the admin as backup) record a verified damage report for
+     * one specific borrowed item — typically after the student tapped
+     * "Report Damage" and brought the item in. The report is tied to that
+     * exact borrowed line (equipment + inventory), capped at the quantity
+     * still unreported, and can carry a photo as evidence.
+     */
+    public function recordDamage(Borrowing $borrowing, int $borrowingEquipmentId, int $quantity, string $description, ?UploadedFile $photo, int $userId): DamageReport
+    {
+        if (!in_array($borrowing->status, ['borrowed', 'overdue'], true)) {
+            throw new InvalidBorrowingStateException('Damage can only be recorded while the equipment is still borrowed. For damage found at return, use the return form.');
+        }
+
+        $item = $borrowing->borrowingEquipment()->whereKey($borrowingEquipmentId)->first();
+        if (!$item) {
+            throw ValidationException::withMessages(['borrowing_equipment_id' => 'That equipment is not part of this borrowing.']);
+        }
+
+        $alreadyReported = (int) DamageReport::where('borrowing_id', $borrowing->id)
+            ->where('equipment_inventory_id', $item->inventory_id)
+            ->sum('quantity');
+        $remaining = $item->quantity - $alreadyReported;
+        if ($remaining <= 0) {
+            throw ValidationException::withMessages(['quantity' => 'All units of this item have already been reported damaged.']);
+        }
+        if ($quantity > $remaining) {
+            throw ValidationException::withMessages(['quantity' => "At most {$remaining} more unit(s) of this item can be reported damaged."]);
+        }
+
+        $report = DamageReport::create([
+            'borrowing_id'           => $borrowing->id,
+            'equipment_id'           => $item->equipment_id,
+            'equipment_inventory_id' => $item->inventory_id,
+            'quantity'               => $quantity,
+            'reported_by'            => $userId,
+            'description'            => $description,
+            // Private disk + random filename, same as the assess-step photo.
+            'photo_path'             => $photo?->store('damage-reports', 'local'),
+            'status'                 => 'pending',
+        ]);
+
+        AuditLog::log($userId, 'Recorded Damage Report', 'damage_reports', $report->id, null, [
+            'borrowing_id' => $borrowing->id,
+            'equipment_id' => $item->equipment_id,
+            'quantity'     => $quantity,
+        ]);
+
+        $report->load('borrowing.user', 'borrowing.faculty', 'equipment');
+        NotificationService::damageReportFiled($report);
+
+        return $report;
+    }
+
+    /**
      * Requests whose equipment hasn't been handed out yet — the ones an
      * activity's cancellation can still cancel.
      */
@@ -538,6 +593,21 @@ class BorrowingService
                 // Handle damaged items
                 if ($damagedQty > 0) {
                     $item->update(['condition_on_return' => 'damaged']);
+
+                    // Lab staff may already have recorded this item's damage
+                    // while it was still borrowed (after the student reported
+                    // it) — update that report instead of filing a duplicate.
+                    $existing = DamageReport::where('borrowing_id', $borrowing->id)
+                        ->where('equipment_inventory_id', $item->inventory_id)
+                        ->first();
+                    if ($existing) {
+                        $existing->update(array_filter([
+                            'quantity'      => max($existing->quantity, $damagedQty),
+                            'liable_party'  => $liableParty,
+                            'liable_reason' => $liableReason,
+                        ], fn ($v) => $v !== null));
+                        continue;
+                    }
 
                     $report = DamageReport::create([
                         'borrowing_id'           => $borrowing->id,

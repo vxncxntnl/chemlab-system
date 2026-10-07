@@ -113,6 +113,7 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
     Route::get('/borrowings/{borrowing}', [LabBorrowingController::class, 'show'])->name('borrowings.show');
     Route::post('/borrowings/{borrowing}/release', [LabBorrowingController::class, 'release'])->name('borrowings.release');
     Route::post('/borrowings/{borrowing}/return', [LabBorrowingController::class, 'return'])->name('borrowings.return');
+    Route::post('/borrowings/{borrowing}/damage', [LabBorrowingController::class, 'recordDamage'])->name('borrowings.record-damage');
 
     // Activity history — this lab staff member's own actions
     Route::get('/history', [LabBorrowingController::class, 'history'])->name('history');
@@ -177,6 +178,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     Route::post('/borrowings/{borrowing}/reject', [AdminBorrowingController::class, 'reject'])->name('borrowings.reject');
     Route::post('/borrowings/{borrowing}/release', [AdminBorrowingController::class, 'release'])->name('borrowings.release');
     Route::post('/borrowings/{borrowing}/return', [AdminBorrowingController::class, 'return'])->name('borrowings.return');
+    Route::post('/borrowings/{borrowing}/damage', [AdminBorrowingController::class, 'recordDamage'])->name('borrowings.record-damage');
 
     // Damage Reports
     Route::get('/damage-reports', [DamageReportController::class, 'index'])->name('damage-reports.index');
@@ -255,7 +257,7 @@ Route::middleware(['auth', 'role:student', 'profile.complete', 'throttle:300,1']
     Route::post('/borrowings', [StudentBorrowingController::class, 'store'])->middleware('throttle:5,1,student-borrow-store')->name('borrowings.store');
     Route::get('/borrowings/{borrowing}', [StudentBorrowingController::class, 'show'])->name('borrowings.show');
     Route::post('/borrowings/{borrowing}/cancel', [StudentBorrowingController::class, 'cancel'])->name('borrowings.cancel');
-    Route::post('/borrowings/{borrowing}/report-damage', [StudentBorrowingController::class, 'reportDamage'])->name('borrowings.report-damage');
+    Route::post('/borrowings/{borrowing}/report-damage', [StudentBorrowingController::class, 'reportDamage'])->middleware('throttle:10,1')->name('borrowings.report-damage');
     Route::get('/history', [StudentBorrowingController::class, 'history'])->name('history');
 });
 

@@ -15,6 +15,19 @@ const liableLabel = (party: string) => {
 const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
 const formatDateTime = (d: string) => d ? new Date(d).toLocaleString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
+// Only the items actually reported damaged in this borrowing (one damage
+// report per damaged item), never the whole borrowing. Falls back to this
+// report alone if the borrowing's reports weren't loaded.
+const damagedItems = (props.report.borrowing?.damage_reports?.length
+    ? props.report.borrowing.damage_reports
+    : [props.report]) as Array<any>;
+
+// How many of that item were borrowed, for "1 of 2" style context.
+const borrowedQty = (item: any) =>
+    (props.report.borrowing?.borrowing_equipment ?? []).find((b: any) =>
+        b.equipment_id === item.equipment_id && (!item.equipment_inventory_id || b.inventory_id === item.equipment_inventory_id)
+    )?.quantity;
+
 const print = () => window.print();
 const goBack = () => window.history.back();
 </script>
@@ -116,14 +129,23 @@ const goBack = () => window.history.back();
                     <tr>
                         <th>Equipment</th>
                         <th>Category</th>
+                        <th class="text-center">Qty Damaged</th>
+                        <th>Condition</th>
                         <th>Campus / Location</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="item in report.borrowing?.borrowing_equipment" :key="item.id">
+                    <tr v-for="item in damagedItems" :key="item.id">
                         <td class="font-medium">{{ item.equipment?.name }}</td>
                         <td>{{ item.equipment?.category }}</td>
-                        <td>{{ item.inventory?.campus?.campus_name }} — {{ item.inventory?.location?.location_name }}</td>
+                        <td class="text-center font-semibold">
+                            {{ item.quantity ?? 1 }}<span v-if="borrowedQty(item)" class="font-normal text-gray-500"> of {{ borrowedQty(item) }}</span>
+                        </td>
+                        <td>Damaged</td>
+                        <td>
+                            <template v-if="item.inventory">{{ item.inventory.campus?.campus_name }} — {{ item.inventory.location?.location_name }}</template>
+                            <template v-else>—</template>
+                        </td>
                     </tr>
                 </tbody>
             </table>

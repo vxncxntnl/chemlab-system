@@ -150,6 +150,12 @@ class DamageReportController extends Controller
             'borrowing.borrowingEquipment.equipment',
             'borrowing.borrowingEquipment.inventory.campus',
             'borrowing.borrowingEquipment.inventory.location',
+            // The printed report lists only the damaged items of this
+            // borrowing — its damage reports (one per damaged item) — not
+            // every item that was borrowed.
+            'borrowing.damageReports.equipment',
+            'borrowing.damageReports.inventory.campus',
+            'borrowing.damageReports.inventory.location',
             'equipment',
             'reporter',
         ]);

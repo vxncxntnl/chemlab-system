@@ -6,6 +6,7 @@ use App\Mail\AccountStatusMail;
 use App\Mail\BorrowingStatusMail;
 use App\Models\Activity;
 use App\Models\Borrowing;
+use App\Models\BorrowingEquipment;
 use App\Models\DamageReport;
 use App\Models\User;
 use App\Models\UserNotification;
@@ -299,6 +300,40 @@ class NotificationService
         );
     }
 
+    /**
+     * A student tapped "Report Damage" on a borrowed item: alert the lab
+     * staff of the campus that item belongs to (falling back to the admins
+     * if that campus has none) so they can check it when the student
+     * brings it in. No damage report exists yet — staff record it after
+     * verifying.
+     */
+    public static function possibleDamageReported(Borrowing $borrowing, BorrowingEquipment $item, User $student): void
+    {
+        $campusId = $item->inventory?->campus_id;
+        $recipients = User::where('role', 'lab_staff')->where('status', 'active')
+            ->when($campusId, fn ($q) => $q->where('campus_id', $campusId))
+            ->get();
+        if ($recipients->isEmpty()) {
+            $recipients = User::where('role', 'admin')->where('status', 'active')->get();
+        }
+
+        $equipment = $item->equipment?->name ?? 'an item';
+        $location = $item->inventory?->location?->location_name;
+        $message = "{$student->name} reported that {$equipment} (borrowing #{$borrowing->id}"
+            . ($location ? ", {$location}" : '') . ") may be damaged. "
+            . 'Please check the item when the student brings it to the laboratory, then record a damage report if confirmed.';
+
+        foreach ($recipients as $recipient) {
+            self::sendWithEmail(
+                $recipient,
+                'Possible Damage Reported by Student',
+                $message,
+                'warning',
+                $recipient->role === 'admin' ? "/admin/borrowings/{$borrowing->id}" : "/lab/borrowings/{$borrowing->id}"
+            );
+        }
+    }
+
     public static function damageReportFiled(DamageReport $report): void
     {
         $borrowing = $report->borrowing;
@@ -318,7 +353,7 @@ class NotificationService
             self::sendWithEmail(
                 $faculty,
                 'Incident Report Filed — Please Contact the Student',
-                "An incident report has been filed for {$equipment?->name} returned by {$student?->name} " .
+                "An incident report has been filed for {$equipment?->name} borrowed by {$student?->name} " .
                     "(Borrowing #{$borrowing->id}). Liable party: {$liableLabel}. " .
                     "Please contact the student to discuss resolution.",
                 'warning',

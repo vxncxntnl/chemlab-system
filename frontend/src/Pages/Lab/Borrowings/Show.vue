@@ -9,8 +9,9 @@ import InputError from '@/Components/InputError.vue';
 import TextInput from '@/Components/TextInput.vue';
 import QrCode from '@/Components/QrCode.vue';
 import BackButton from '@/Components/BackButton.vue';
+import RecordDamageModal from '@/Components/RecordDamageModal.vue';
 import { useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps<{
     borrowing: any;
@@ -89,6 +90,9 @@ const onDamagedChange = (itemId: number, totalQty: number) => {
 const submitReturn = () => {
     returnForm.post(route('lab.borrowings.return', props.borrowing.id));
 };
+// Record a verified damage report for one borrowed item (with optional photo).
+const isOut = computed(() => ['borrowed', 'overdue'].includes(props.borrowing.status));
+const damageItem = ref<{ id: number; name: string; quantity: number } | null>(null);
 </script>
 
 <template>
@@ -172,6 +176,7 @@ const submitReturn = () => {
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Location</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Qty</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Condition (Borrow)</th>
+                                <th v-if="isOut" class="px-6 py-3"><span class="sr-only">Actions</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 bg-white">
@@ -183,6 +188,12 @@ const submitReturn = () => {
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ item.quantity }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <Badge variant="info">{{ item.condition_on_borrow }}</Badge>
+                                </td>
+                                <td v-if="isOut" class="px-6 py-4 whitespace-nowrap text-right">
+                                    <button type="button" @click="damageItem = { id: item.id, name: item.equipment?.name, quantity: item.quantity }"
+                                        class="inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50">
+                                        Record Damage
+                                    </button>
                                 </td>
                             </tr>
                         </tbody>
@@ -323,6 +334,7 @@ const submitReturn = () => {
                 </div>
             </form>
         </Card>
+        <RecordDamageModal :item="damageItem" :borrowing-id="borrowing.id" route-name="lab.borrowings.record-damage" @close="damageItem = null" />
     </LabLayout>
 </template>
 

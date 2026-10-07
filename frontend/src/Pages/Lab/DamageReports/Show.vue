@@ -161,7 +161,7 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
 
                 <form v-if="showAssessForm" @submit.prevent="submitAssess" class="mt-4 border-t border-gray-100 pt-4 space-y-4">
                     <div>
-                        <InputLabel for="photo" value="Damage Photo (Optional)" />
+                        <InputLabel for="photo" :value="report.photo_path ? 'Replace Damage Photo (Optional)' : 'Damage Photo (Optional)'" />
                         <input
                             id="photo"
                             type="file"
@@ -169,7 +169,7 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                             class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100"
                             @change="handlePhotoChange"
                         />
-                        <p class="mt-1 text-xs text-gray-500">Maximum size: 10 MB. Accepted formats: JPG, JPEG, PNG, WebP.</p>
+                        <p class="mt-1 text-xs text-gray-500">Maximum size: 10 MB. Accepted formats: JPG, JPEG, PNG, WebP. On a phone you can take the photo directly.</p>
                         <InputError :message="assessForm.errors.photo" class="mt-2" />
                         <img v-if="photoPreview" :src="photoPreview" alt="Preview" class="mt-2 h-32 w-32 object-cover rounded-lg" />
                     </div>

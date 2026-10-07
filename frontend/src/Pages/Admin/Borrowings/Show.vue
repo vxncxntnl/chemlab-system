@@ -7,6 +7,7 @@ import BorrowingStatusTracker from '@/Components/BorrowingStatusTracker.vue';
 import BackButton from '@/Components/BackButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
+import RecordDamageModal from '@/Components/RecordDamageModal.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
@@ -70,6 +71,10 @@ const doReturn = () => {
 // Admin can release as a backup when no lab staff is available.
 const showReleaseModal = ref(false);
 const doRelease = () => { router.post(route('admin.borrowings.release', props.borrowing.id)); showReleaseModal.value = false; };
+
+// Record a verified damage report for one borrowed item (with optional photo).
+const isOut = computed(() => ['borrowed', 'overdue'].includes(props.borrowing.status));
+const damageItem = ref<{ id: number; name: string; quantity: number } | null>(null);
 </script>
 
 <template>
@@ -301,6 +306,7 @@ const doRelease = () => { router.post(route('admin.borrowings.release', props.bo
                             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Quantity</th>
                             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Condition (Borrow)</th>
                             <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Condition (Return)</th>
+                            <th v-if="isOut" class="px-6 py-3"><span class="sr-only">Actions</span></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
@@ -320,6 +326,12 @@ const doRelease = () => { router.post(route('admin.borrowings.release', props.bo
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <Badge v-if="item.condition_on_return" variant="info">{{ item.condition_on_return }}</Badge>
                                 <span v-else class="text-gray-400">-</span>
+                            </td>
+                            <td v-if="isOut" class="px-6 py-4 whitespace-nowrap text-right">
+                                <button type="button" @click="damageItem = { id: item.id, name: item.equipment?.name, quantity: item.quantity }"
+                                    class="inline-flex items-center rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50">
+                                    Record Damage
+                                </button>
                             </td>
                         </tr>
                     </tbody>
@@ -387,5 +399,6 @@ const doRelease = () => { router.post(route('admin.borrowings.release', props.bo
                 </div>
             </dl>
         </ConfirmModal>
+        <RecordDamageModal :item="damageItem" :borrowing-id="borrowing.id" route-name="admin.borrowings.record-damage" @close="damageItem = null" />
     </AdminLayout>
 </template>

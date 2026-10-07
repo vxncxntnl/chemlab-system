@@ -185,6 +185,36 @@ class BorrowingController extends Controller
         return back()->with('success', 'Equipment released to borrower.');
     }
 
+    /**
+     * Same as lab staff's: record a verified damage report for one borrowed
+     * item, with an optional photo — the admin's backup when no lab staff
+     * is available.
+     */
+    public function recordDamage(Request $request, Borrowing $borrowing)
+    {
+        $validated = $request->validate([
+            'borrowing_equipment_id' => 'required|integer',
+            'quantity'               => 'required|integer|min:1',
+            'description'            => 'required|string|max:1000',
+            'photo'                  => 'nullable|mimes:jpg,jpeg,png,webp|max:10240',
+        ]);
+
+        try {
+            $this->borrowingService->recordDamage(
+                $borrowing,
+                (int) $validated['borrowing_equipment_id'],
+                (int) $validated['quantity'],
+                $validated['description'],
+                $request->file('photo'),
+                auth()->id()
+            );
+        } catch (InvalidBorrowingStateException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Damage report recorded.');
+    }
+
     public function return(Request $request, Borrowing $borrowing)
     {
         if (!in_array($borrowing->status, ['borrowed', 'overdue'])) {

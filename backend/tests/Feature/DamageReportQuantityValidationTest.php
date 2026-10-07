@@ -34,12 +34,12 @@ class DamageReportQuantityValidationTest extends TestCase
         $otherEquipment = Equipment::create(['equipment_code' => 'EQ-' . uniqid(), 'name' => 'Not Borrowed', 'condition' => 'good', 'is_available' => true]);
         $inventory = EquipmentInventory::create(['equipment_id' => $equipment->id, 'campus_id' => $campus->id, 'location_id' => $location->id, 'total_quantity' => 10, 'available_quantity' => 10 - $quantity]);
 
-        // campus_id/student_id/course are required for the 'profile.complete'
-        // middleware on student routes — without them the request redirects
-        // to the complete-profile page before ever reaching the controller.
+        // Students no longer file damage reports themselves (they report to
+        // lab staff, who record it); a faculty borrower still can, through
+        // the same validation.
         $student = User::factory()->create([
-            'role' => 'student', 'status' => 'active',
-            'campus_id' => $campus->id, 'student_id' => 'S-' . uniqid(), 'course' => 'BSIT',
+            'role' => 'faculty', 'status' => 'active',
+            'campus_id' => $campus->id, 'department' => 'Nursing',
         ]);
         $borrowing = Borrowing::create(['user_id' => $student->id, 'borrow_date' => now(), 'return_date' => now()->addDays(3), 'status' => 'borrowed']);
         BorrowingEquipment::create(['borrowing_id' => $borrowing->id, 'equipment_id' => $equipment->id, 'inventory_id' => $inventory->id, 'quantity' => $quantity, 'condition_on_borrow' => 'good']);
@@ -51,7 +51,7 @@ class DamageReportQuantityValidationTest extends TestCase
     {
         ['student' => $student, 'borrowing' => $borrowing, 'equipment' => $equipment] = $this->makeBorrowedItem(quantity: 3);
 
-        $response = $this->actingAs($student)->post("/student/borrowings/{$borrowing->id}/report-damage", [
+        $response = $this->actingAs($student)->post("/faculty/borrowings/{$borrowing->id}/report-damage", [
             'equipment_id' => $equipment->id,
             'quantity' => 4,
             'description' => 'Dropped and cracked.',
@@ -65,7 +65,7 @@ class DamageReportQuantityValidationTest extends TestCase
     {
         ['student' => $student, 'borrowing' => $borrowing, 'equipment' => $equipment] = $this->makeBorrowedItem(quantity: 3);
 
-        $response = $this->actingAs($student)->post("/student/borrowings/{$borrowing->id}/report-damage", [
+        $response = $this->actingAs($student)->post("/faculty/borrowings/{$borrowing->id}/report-damage", [
             'equipment_id' => $equipment->id,
             'quantity' => 2,
             'description' => 'Two units cracked.',
@@ -80,10 +80,10 @@ class DamageReportQuantityValidationTest extends TestCase
     {
         ['student' => $student, 'borrowing' => $borrowing, 'equipment' => $equipment] = $this->makeBorrowedItem(quantity: 3);
 
-        $zero = $this->actingAs($student)->post("/student/borrowings/{$borrowing->id}/report-damage", [
+        $zero = $this->actingAs($student)->post("/faculty/borrowings/{$borrowing->id}/report-damage", [
             'equipment_id' => $equipment->id, 'quantity' => 0, 'description' => 'x',
         ]);
-        $negative = $this->actingAs($student)->post("/student/borrowings/{$borrowing->id}/report-damage", [
+        $negative = $this->actingAs($student)->post("/faculty/borrowings/{$borrowing->id}/report-damage", [
             'equipment_id' => $equipment->id, 'quantity' => -1, 'description' => 'x',
         ]);
 
@@ -95,7 +95,7 @@ class DamageReportQuantityValidationTest extends TestCase
     {
         ['student' => $student, 'borrowing' => $borrowing, 'otherEquipment' => $otherEquipment] = $this->makeBorrowedItem(quantity: 3);
 
-        $response = $this->actingAs($student)->post("/student/borrowings/{$borrowing->id}/report-damage", [
+        $response = $this->actingAs($student)->post("/faculty/borrowings/{$borrowing->id}/report-damage", [
             'equipment_id' => $otherEquipment->id,
             'quantity' => 1,
             'description' => 'Claiming damage on something never borrowed.',
@@ -109,13 +109,13 @@ class DamageReportQuantityValidationTest extends TestCase
     {
         ['student' => $student, 'borrowing' => $borrowing, 'equipment' => $equipment] = $this->makeBorrowedItem(quantity: 3);
 
-        $first = $this->actingAs($student)->post("/student/borrowings/{$borrowing->id}/report-damage", [
+        $first = $this->actingAs($student)->post("/faculty/borrowings/{$borrowing->id}/report-damage", [
             'equipment_id' => $equipment->id, 'quantity' => 2, 'description' => 'First report.',
         ]);
         $first->assertSessionDoesntHaveErrors();
 
         // Only 1 unit "remaining" to report now (3 borrowed - 2 already reported).
-        $second = $this->actingAs($student)->post("/student/borrowings/{$borrowing->id}/report-damage", [
+        $second = $this->actingAs($student)->post("/faculty/borrowings/{$borrowing->id}/report-damage", [
             'equipment_id' => $equipment->id, 'quantity' => 2, 'description' => 'Second report tries to double-claim.',
         ]);
 
