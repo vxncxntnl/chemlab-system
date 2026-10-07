@@ -5,7 +5,7 @@ import BackButton from '@/Components/BackButton.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { formatDateTime } from '@/utils/date';
 import { Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
 
 const { formatStatus, statusVariant } = useBorrowingStatus();
@@ -20,6 +20,12 @@ const props = defineProps<{
 
 const formatDate = (d?: string | null) => d ? new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 const itemsOf = (r: any) => (r.borrowing_equipment ?? []).map((i: any) => `${i.equipment?.name ?? 'Item'} ×${i.quantity}`).join(', ');
+
+// Cancelled requests are hidden by default (nothing to do with them).
+const showCancelled = ref(false);
+const activeRequests = computed(() => props.requests.filter(r => r.status !== 'cancelled'));
+const cancelledCount = computed(() => props.requests.length - activeRequests.value.length);
+const shownRequests = computed(() => showCancelled.value ? props.requests : activeRequests.value);
 
 const approving = ref<number | null>(null);
 const approveOne = (id: number) => {
@@ -81,11 +87,11 @@ const approveAll = () => {
 
         <div class="rounded-xl bg-white shadow">
             <h2 class="border-b border-gray-100 px-5 py-4 text-base font-semibold text-gray-800">
-                Student Requests <span class="text-sm font-normal text-gray-400">({{ requests.length }})</span>
+                Student Requests <span class="text-sm font-normal text-gray-400">({{ activeRequests.length }})</span>
             </h2>
 
-            <ul v-if="requests.length" class="divide-y divide-gray-100">
-                <li v-for="(r, index) in requests" :key="r.id" class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <ul v-if="shownRequests.length" class="divide-y divide-gray-100">
+                <li v-for="(r, index) in shownRequests" :key="r.id" class="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div class="min-w-0">
                         <p class="text-sm font-semibold text-gray-900">{{ index + 1 }}. {{ r.user?.name }}</p>
                         <p class="text-sm text-gray-500 break-all">{{ r.user?.email }}</p>
@@ -105,7 +111,14 @@ const approveAll = () => {
                     </div>
                 </li>
             </ul>
-            <p v-else class="px-5 py-6 text-sm text-gray-400">No student requests for this activity yet.</p>
+            <p v-else class="px-5 py-6 text-sm text-gray-400">No active student requests for this activity.</p>
+
+            <!-- Cancelled requests need no action: hidden, but kept as history -->
+            <div v-if="cancelledCount" class="border-t border-gray-100 px-5 py-3">
+                <button type="button" class="text-xs font-semibold text-gray-500 hover:text-gray-700" @click="showCancelled = !showCancelled">
+                    {{ showCancelled ? 'Hide cancelled' : `Show cancelled (${cancelledCount})` }}
+                </button>
+            </div>
         </div>
 
         <ConfirmModal

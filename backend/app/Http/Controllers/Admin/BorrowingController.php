@@ -88,7 +88,9 @@ class BorrowingController extends Controller
 
         return $requests->groupBy('activity_id')->map(fn ($rows, $activityId) => [
             'requests' => $rows->count(),
-            'students' => $rows->pluck('user_id')->unique()->count(),
+            // Cancelled requests don't count (unless all of them were cancelled).
+            'students' => ($rows->where('status', '!=', 'cancelled')->isNotEmpty() ? $rows->where('status', '!=', 'cancelled') : $rows)
+                ->pluck('user_id')->unique()->count(),
             'need_approval' => $rows->where('status', 'pending_admin')->count(),
             'in_progress' => $rows->whereIn('status', ['pending_faculty', 'approved', 'borrowed', 'overdue'])->count(),
             'unread' => $unread[$activityId] ?? 0,
