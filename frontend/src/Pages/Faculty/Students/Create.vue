@@ -87,7 +87,7 @@ const inputClass = 'mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-
 
                 <p class="text-sm text-gray-600">
                     Campus: <span class="font-medium text-gray-900">{{ campus?.campus_name ?? 'Not set — ask the administrator to set your campus' }}</span>
-                    <span class="text-gray-500">(the student is added to your campus)</span>
+                    <span class="ml-1 text-gray-500">(the student is added to your campus)</span>
                 </p>
 
                 <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
