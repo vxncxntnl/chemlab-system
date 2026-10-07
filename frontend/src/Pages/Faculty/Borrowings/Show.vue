@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import UserLayout from '@/Layouts/UserLayout.vue';
 import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
@@ -27,6 +28,7 @@ const props = defineProps<{
         borrow_date: string;
         return_date: string;
         actual_return_date: string | null;
+        admin_approved_at?: string | null;
         purpose: string | null;
         subject?: string | null;
         claim_code?: string | null;
@@ -231,7 +233,11 @@ const submitDamageReport = () => {
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Requested On</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ new Date(borrowing.created_at).toLocaleString() }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(borrowing.created_at) }}</dd>
+                    </div>
+                    <div v-if="borrowing.admin_approved_at">
+                        <dt class="text-sm font-medium text-gray-500">Approved On</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(borrowing.admin_approved_at) }}</dd>
                     </div>
                 </dl>
             </Card>

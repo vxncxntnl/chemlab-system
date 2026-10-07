@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import LabLayout from '@/Layouts/LabLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
@@ -26,6 +27,7 @@ defineProps<{
 const columns = [
     { key: 'user', label: 'Borrower' },
     { key: 'faculty', label: 'Faculty / Instructor' },
+    { key: 'created_at', label: 'Requested On' },
     { key: 'borrow_date', label: 'Borrow Date' },
     { key: 'return_date', label: 'Return Date' },
     { key: 'status', label: 'Status' },
@@ -65,6 +67,9 @@ const columns = [
                 {{ row.faculty?.name ?? '—' }}
             </template>
 
+            <template #cell-created_at="{ value }">
+                <span class="whitespace-nowrap text-xs text-gray-700">{{ formatDateTime(value) }}</span>
+            </template>
             <template #cell-borrow_date="{ value }">
                 {{ new Date(value).toLocaleDateString() }}
             </template>

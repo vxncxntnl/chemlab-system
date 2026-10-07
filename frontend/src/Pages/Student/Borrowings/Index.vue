@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import UserLayout from '@/Layouts/UserLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
@@ -29,6 +30,7 @@ const statusFilter = ref('');
 const columns = [
     { key: 'equipment', label: 'Equipment' },
     { key: 'faculty', label: 'Faculty / Instructor' },
+    { key: 'created_at', label: 'Requested On' },
     { key: 'borrow_date', label: 'Borrow Date' },
     { key: 'return_date', label: 'Return Date' },
     { key: 'status', label: 'Status' },
@@ -104,6 +106,9 @@ const doCancel = () => {
             </template>
             <template #cell-faculty="{ row }">
                 {{ row.faculty?.name ?? '—' }}
+            </template>
+            <template #cell-created_at="{ value }">
+                <span class="whitespace-nowrap text-xs text-gray-700">{{ formatDateTime(value) }}</span>
             </template>
             <template #cell-borrow_date="{ value }">
                 {{ formatDate(value) }}
