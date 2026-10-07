@@ -69,6 +69,9 @@ class BorrowingController extends Controller
             'preselectedInventory' => $preselectedInventory,
             'activeBorrowingCount' => $activeBorrowingCount,
             'maxActiveBorrowings' => BorrowingService::MAX_ACTIVE_BORROWINGS,
+            // Shown on the form so the request clearly belongs to their program.
+            'facultyProgram' => $user->department,
+            'facultyCampus' => $user->campus?->campus_name,
         ]);
     }
 

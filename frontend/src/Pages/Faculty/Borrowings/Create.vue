@@ -35,6 +35,8 @@ const props = defineProps<{
     } | null;
     activeBorrowingCount: number;
     maxActiveBorrowings: number;
+    facultyProgram?: string | null;
+    facultyCampus?: string | null;
 }>();
 
 const atBorrowingLimit = computed(() => props.activeBorrowingCount >= props.maxActiveBorrowings);
@@ -181,6 +183,12 @@ const submit = () => {
         </transition>
 
         <form @submit.prevent="submit" class="space-y-6">
+            <!-- Who is requesting: the faculty's own program and campus -->
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+                <span><span class="text-gray-500">Program:</span> <span class="font-semibold text-gray-900">{{ facultyProgram || 'Not set' }}</span></span>
+                <span><span class="text-gray-500">Campus:</span> <span class="font-semibold text-gray-900">{{ facultyCampus || 'Not set' }}</span></span>
+            </div>
+
             <Card title="Borrowing Details">
                 <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>

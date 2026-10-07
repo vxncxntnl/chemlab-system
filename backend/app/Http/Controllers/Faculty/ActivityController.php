@@ -75,6 +75,7 @@ class ActivityController extends Controller
 
         return Inertia::render('Faculty/Activities/Create', [
             'inventoryItems' => $inventoryItems,
+            'facultyDepartment' => auth()->user()->department,
         ]);
     }
 
@@ -82,7 +83,9 @@ class ActivityController extends Controller
     {
         $validated = $request->validate([
             'title'        => 'required|string|max:255',
-            'department'   => 'required|string|max:255',
+            // Taken from the instructor's own program when set (see below);
+            // only chosen on the form if their account has none.
+            'department'   => [auth()->user()->department ? 'nullable' : 'required', 'string', 'max:255'],
             'activity_date'=> 'required|date',
             'return_date'  => 'required|date|after_or_equal:activity_date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
@@ -94,7 +97,7 @@ class ActivityController extends Controller
         $activity = Activity::create([
             'title'         => $validated['title'],
             'instructor_id' => $validated['instructor_id'],
-            'department'    => $validated['department'],
+            'department'    => auth()->user()->department ?: $validated['department'],
             'activity_date' => $validated['activity_date'],
             'return_date'   => $validated['return_date'],
             'status'        => $validated['status'],
@@ -154,6 +157,7 @@ class ActivityController extends Controller
             'activity' => $activity,
             'inventoryItems' => $inventoryItems,
             'selectedInventoryIds' => $activity->equipmentQrCodes->pluck('equipment_inventory_id'),
+            'facultyDepartment' => auth()->user()->department,
         ]);
     }
 
@@ -175,7 +179,9 @@ class ActivityController extends Controller
 
         $validated = $request->validate([
             'title'        => 'required|string|max:255',
-            'department'   => 'required|string|max:255',
+            // Taken from the instructor's own program when set (see below);
+            // only chosen on the form if their account has none.
+            'department'   => [auth()->user()->department ? 'nullable' : 'required', 'string', 'max:255'],
             'activity_date'=> 'required|date',
             'return_date'  => 'required|date|after_or_equal:activity_date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
@@ -184,7 +190,7 @@ class ActivityController extends Controller
 
         $activity->update([
             'title'         => $validated['title'],
-            'department'    => $validated['department'],
+            'department'    => auth()->user()->department ?: $validated['department'],
             'activity_date' => $validated['activity_date'],
             'return_date'   => $validated['return_date'],
             'status'        => $validated['status'],

@@ -6,6 +6,7 @@ import { Link, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
 const props = defineProps<{
+    facultyDepartment?: string | null;
     activity: any;
     inventoryItems: Array<any>;
     selectedInventoryIds: Array<number>;
@@ -78,8 +79,12 @@ const submit = () => form.put(route('faculty.activities.update', props.activity.
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Department <span class="text-red-500">*</span></label>
-                        <select v-model="form.department" required
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Department <span v-if="!facultyDepartment" class="text-red-500">*</span></label>
+                        <!-- The instructor's own program, set automatically -->
+                        <div v-if="facultyDepartment" class="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-800">
+                            {{ facultyDepartment }}
+                        </div>
+                        <select v-else v-model="form.department" required
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                             <option value="">Select Department</option>
                             <option>Medical Technology (MedTech)</option>
