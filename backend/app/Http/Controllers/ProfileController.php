@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Borrowing;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,15 +53,27 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        // Staff accounts are removed by an administrator (Admin > Users),
+        // which soft-deletes and keeps their history — and an admin deleting
+        // themselves here could leave the system with no administrator.
+        if (in_array($user->role, ['admin', 'lab_staff'], true)) {
+            return back()->withErrors(['password' => 'Admin and lab staff accounts can\'t be deleted here. Ask an administrator to remove the account from Users management.']);
+        }
+
+        // This is a permanent delete, and borrowings.user_id cascades on
+        // delete — it would erase the lab's records of what this person
+        // borrowed. Accounts with any borrowing history are kept.
+        $hasRecords = Borrowing::withTrashed()
+            ->where(fn ($q) => $q->where('user_id', $user->id)->orWhere('faculty_id', $user->id))
+            ->exists();
+        if ($hasRecords) {
+            return back()->withErrors(['password' => 'Your account has borrowing records that the laboratory must keep, so it can\'t be deleted. Please contact the laboratory administrator.']);
+        }
+
         Auth::logout();
 
-        // Deliberately a real delete, not the soft-delete that admin-driven
-        // removal now uses (Admin > Users > Delete) — this is the account
-        // owner's own "delete my account" request, not a case where someone
-        // else's accountability trail needs to survive. If this account has
-        // borrowing/audit history, those records still reference this user's
-        // ID and remain fully readable via ->withTrashed() on those
-        // relationships even after this row is genuinely gone.
+        // A real delete is fine here: this account has no borrowing history
+        // to preserve, and it frees the email so the person can sign up again.
         $user->forceDelete();
 
         $request->session()->invalidate();

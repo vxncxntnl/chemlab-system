@@ -79,6 +79,42 @@ class ProfileTest extends TestCase
         $this->assertNull($user->fresh());
     }
 
+    public function test_the_profile_page_opens_for_every_role(): void
+    {
+        $this->withoutVite();
+
+        foreach (['admin', 'lab_staff', 'faculty', 'student'] as $role) {
+            $user = User::factory()->create(['role' => $role, 'status' => 'active']);
+            $this->actingAs($user)->get('/profile')->assertOk();
+        }
+    }
+
+    public function test_admin_and_lab_staff_cannot_delete_their_own_account_here(): void
+    {
+        foreach (['admin', 'lab_staff'] as $role) {
+            $user = User::factory()->create(['role' => $role, 'status' => 'active']);
+
+            $this->actingAs($user)->from('/profile')->delete('/profile', ['password' => 'password'])
+                ->assertSessionHasErrors('password');
+
+            $this->assertNotNull($user->fresh());
+        }
+    }
+
+    public function test_an_account_with_borrowing_records_cannot_be_deleted(): void
+    {
+        $student = User::factory()->create(['role' => 'student', 'status' => 'active']);
+        $borrowing = \App\Models\Borrowing::create([
+            'user_id' => $student->id, 'borrow_date' => now(), 'return_date' => now()->addDay(), 'status' => 'returned',
+        ]);
+
+        $this->actingAs($student)->from('/profile')->delete('/profile', ['password' => 'password'])
+            ->assertSessionHasErrors('password');
+
+        $this->assertNotNull($student->fresh());
+        $this->assertNotNull($borrowing->fresh(), 'The borrowing history is kept.');
+    }
+
     public function test_correct_password_must_be_provided_to_delete_account(): void
     {
         $user = User::factory()->create();
