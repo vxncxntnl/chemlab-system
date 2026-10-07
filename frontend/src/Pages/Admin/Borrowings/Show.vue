@@ -294,6 +294,14 @@ const markNoDamage = (itemId: number) => {
                         <dd class="mt-1 text-sm text-gray-900">{{ borrowing.approver?.name || 'Pending' }}</dd>
                     </div>
                     <div>
+                        <dt class="text-sm font-medium text-gray-500">Requested On</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(borrowing.created_at) }}</dd>
+                    </div>
+                    <div v-if="borrowing.admin_approved_at">
+                        <dt class="text-sm font-medium text-gray-500">Approved On</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ formatDateTime(borrowing.admin_approved_at) }}</dd>
+                    </div>
+                    <div>
                         <dt class="text-sm font-medium text-gray-500">Borrow Date</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ formatDate(borrowing.borrow_date) }}</dd>
                     </div>

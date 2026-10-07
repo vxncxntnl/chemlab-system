@@ -4,6 +4,7 @@ import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
 import EmptyState from '@/Components/EmptyState.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
+import { formatDateTime } from '@/utils/date';
 import { Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
@@ -53,6 +54,7 @@ const columns = [
     { key: 'user', label: 'Borrower' },
     { key: 'faculty', label: 'Faculty / Instructor' },
     { key: 'source', label: 'Activity / Source' },
+    { key: 'created_at', label: 'Requested On' },
     { key: 'borrow_date', label: 'Borrow Date' },
     { key: 'return_date', label: 'Return Date' },
     { key: 'status', label: 'Status' },
@@ -157,6 +159,9 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString();
             </template>
             <template #cell-faculty="{ row }">
                 {{ row.faculty?.name ?? '—' }}
+            </template>
+            <template #cell-created_at="{ value }">
+                <span class="whitespace-nowrap text-xs text-gray-700">{{ formatDateTime(value) }}</span>
             </template>
             <template #cell-borrow_date="{ value }">
                 {{ formatDate(value) }}
