@@ -41,7 +41,7 @@ class StudentController extends Controller
     public function create()
     {
         return Inertia::render('Faculty/Students/Create', [
-            'defaultCourse' => auth()->user()->department,
+            'course' => auth()->user()->department,
             'campus' => auth()->user()->campus,
         ]);
     }
@@ -50,9 +50,13 @@ class StudentController extends Controller
     {
         $faculty = auth()->user();
 
-        // The student belongs to the faculty's campus, so the faculty needs one.
+        // The student belongs to the faculty's campus and program, so the
+        // faculty needs both set.
         if (!$faculty->campus_id) {
             return back()->with('error', 'Your account has no campus yet. Please ask the administrator to set your campus first.');
+        }
+        if (!$faculty->department) {
+            return back()->with('error', 'Your account has no department yet. Please ask the administrator to set your department first.');
         }
 
         $validated = $request->validate([
@@ -62,7 +66,6 @@ class StudentController extends Controller
             // faculty-added account can't collide with a self-registered one.
             'email'      => ['required', 'string', 'email', 'max:255', 'regex:/@phinmaed\.com$/i', Rule::unique('users', 'email')],
             'student_id' => ['required', 'string', 'max:50', Rule::unique('users', 'student_id')->whereNull('deleted_at')],
-            'course'     => 'required|string|max:255',
         ], [
             'email.regex'       => 'Only PHINMA school emails (@phinmaed.com) can be used.',
             'email.unique'      => 'An account with this email already exists.',
@@ -80,7 +83,9 @@ class StudentController extends Controller
             'status'     => 'active',
             'campus_id'  => $faculty->campus_id,
             'student_id' => $validated['student_id'],
-            'course'     => $validated['course'],
+            // Always the faculty's own program (e.g. a Civil Engineering
+            // faculty adds Civil Engineering students), never chosen.
+            'course'     => $faculty->department,
             'created_by' => $faculty->id,
         ]);
 

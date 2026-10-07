@@ -86,9 +86,28 @@ class FacultyAddStudentTest extends TestCase
         $this->actingAs($this->faculty)->post('/faculty/students', $this->payload(['email' => 'ana@gmail.com']))->assertSessionHasErrors('email');
         $this->actingAs($this->faculty)->post('/faculty/students', $this->payload(['email' => 'taken.coc@phinmaed.com']))->assertSessionHasErrors('email');
         $this->actingAs($this->faculty)->post('/faculty/students', $this->payload(['student_id' => '02-TAKEN']))->assertSessionHasErrors('student_id');
-        $this->actingAs($this->faculty)->post('/faculty/students', $this->payload(['first_name' => '', 'course' => '']))->assertSessionHasErrors(['first_name', 'course']);
+        $this->actingAs($this->faculty)->post('/faculty/students', $this->payload(['first_name' => '', 'student_id' => '']))->assertSessionHasErrors(['first_name', 'student_id']);
 
         $this->assertSame(0, User::where('created_by', $this->faculty->id)->count());
+    }
+
+    public function test_the_course_is_always_the_faculty_department(): void
+    {
+        $engineer = User::factory()->create(['role' => 'faculty', 'status' => 'active', 'campus_id' => $this->carmen->id, 'department' => 'Civil Engineering']);
+
+        // Even if a different course is sent, the faculty's program is used.
+        $this->actingAs($engineer)->post('/faculty/students', $this->payload(['course' => 'Nursing']))->assertSessionHasNoErrors();
+
+        $this->assertSame('Civil Engineering', User::where('email', 'ana.reyes.coc@phinmaed.com')->value('course'));
+        $this->actingAs($engineer)->get('/faculty/students/create')->assertInertia(fn ($page) => $page->where('course', 'Civil Engineering'));
+    }
+
+    public function test_a_faculty_without_a_department_is_asked_to_contact_the_admin(): void
+    {
+        $noDept = User::factory()->create(['role' => 'faculty', 'status' => 'active', 'campus_id' => $this->carmen->id, 'department' => null]);
+
+        $this->actingAs($noDept)->post('/faculty/students', $this->payload())->assertSessionHas('error');
+        $this->assertNull(User::where('email', 'ana.reyes.coc@phinmaed.com')->first());
     }
 
     public function test_a_faculty_without_a_campus_is_asked_to_contact_the_admin(): void

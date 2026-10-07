@@ -5,26 +5,17 @@ import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
-const props = defineProps<{
-    defaultCourse: string | null;
+// The student gets the faculty's own campus and program automatically.
+defineProps<{
+    course: string | null;
     campus: { id: number; campus_name: string } | null;
 }>();
-
-// Same program list used for courses and faculty departments elsewhere.
-const departmentCourses: Record<string, string[]> = {
-    'Health Sciences': ['Medical Technology (MedTech)', 'Pharmacy', 'Nursing'],
-    'Criminal Justice Education': ['Criminology'],
-    'Arts and Sciences': ['Psychology'],
-    'Engineering': ['Civil Engineering', 'Electrical Engineering', 'Mechanical Engineering', 'Computer Engineering'],
-};
-const allCourses = Object.values(departmentCourses).flat();
 
 const form = useForm({
     first_name: '',
     last_name: '',
     email: '',
     student_id: '',
-    course: props.defaultCourse && allCourses.includes(props.defaultCourse) ? props.defaultCourse : '',
 });
 
 const submit = () => form.post(route('faculty.students.store'));
@@ -67,35 +58,31 @@ const inputClass = 'mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-
                     <InputError :message="form.errors.email" class="mt-1" />
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <InputLabel for="student_id" value="Student ID" />
-                        <input id="student_id" v-model="form.student_id" type="text" required maxlength="50" placeholder="e.g. 02-2324-11526" :class="inputClass" />
-                        <InputError :message="form.errors.student_id" class="mt-1" />
-                    </div>
-                    <div>
-                        <InputLabel for="course" value="Course" />
-                        <select id="course" v-model="form.course" required :class="inputClass">
-                            <option value="" disabled>Select course</option>
-                            <optgroup v-for="(courses, dept) in departmentCourses" :key="dept" :label="dept">
-                                <option v-for="c in courses" :key="c" :value="c">{{ c }}</option>
-                            </optgroup>
-                        </select>
-                        <InputError :message="form.errors.course" class="mt-1" />
-                    </div>
+                <div>
+                    <InputLabel for="student_id" value="Student ID" />
+                    <input id="student_id" v-model="form.student_id" type="text" required maxlength="50" placeholder="e.g. 02-2324-11526" :class="inputClass" />
+                    <InputError :message="form.errors.student_id" class="mt-1" />
                 </div>
 
-                <p class="text-sm text-gray-600">
-                    Campus: <span class="font-medium text-gray-900">{{ campus?.campus_name ?? 'Not set — ask the administrator to set your campus' }}</span>
-                    <span class="ml-1 text-gray-500">(the student is added to your campus)</span>
-                </p>
+                <!-- Set automatically from the faculty's account -->
+                <dl class="grid grid-cols-1 gap-3 rounded-lg bg-gray-50 px-4 py-3 text-sm sm:grid-cols-2">
+                    <div>
+                        <dt class="text-gray-500">Course</dt>
+                        <dd class="font-medium text-gray-900">{{ course ?? 'Not set — ask the administrator to set your department' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-gray-500">Campus</dt>
+                        <dd class="font-medium text-gray-900">{{ campus?.campus_name ?? 'Not set — ask the administrator to set your campus' }}</dd>
+                    </div>
+                    <p class="text-xs text-gray-500 sm:col-span-2">The student is added to your program and campus.</p>
+                </dl>
 
                 <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Link :href="route('faculty.students.index')"
                         class="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 sm:w-auto">
                         Cancel
                     </Link>
-                    <button type="submit" :disabled="form.processing || !campus"
+                    <button type="submit" :disabled="form.processing || !campus || !course"
                         class="inline-flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 sm:w-auto">
                         {{ form.processing ? 'Creating…' : 'Create Student Account' }}
                     </button>
