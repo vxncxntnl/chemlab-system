@@ -78,6 +78,16 @@ class BorrowingController extends Controller
         $activityInventoryIds = $preselectedActivity && !$preselectedInventory
             ? $preselectedActivity->selectedInventoryIds()
             : [];
+        // The activity's items that are out of stock right now, by name, so
+        // the student sees exactly what they can't request.
+        $activityUnavailableItems = $activityInventoryIds
+            ? EquipmentInventory::with('equipment:id,name')
+                ->whereIn('id', $activityInventoryIds)
+                ->where('available_quantity', '<=', 0)
+                ->get()
+                ->map(fn ($inv) => $inv->equipment?->name ?? 'An item')
+                ->values()
+            : [];
 
         return Inertia::render('Student/Borrowings/Create', [
             'campuses' => $campuses,
@@ -87,6 +97,7 @@ class BorrowingController extends Controller
             'preselectedInventory' => $preselectedInventory,
             'preselectedActivityId' => $request->activity_id ? (int) $request->activity_id : null,
             'activityInventoryIds' => $activityInventoryIds,
+            'activityUnavailableItems' => $activityUnavailableItems,
             'activeBorrowingCount' => $activeBorrowingCount,
             'maxActiveBorrowings' => BorrowingService::MAX_ACTIVE_BORROWINGS,
         ]);
@@ -134,14 +145,21 @@ class BorrowingController extends Controller
             'faculty_id.exists' => 'The selected faculty member is not available. Please refresh the page and choose another faculty member.',
         ]);
 
-        // Verify availability
+        // Verify availability against the current stock (another student may
+        // have borrowed it since the form was opened). This is a quick check
+        // for a clear message; the final check happens with the stock row
+        // locked when the request is saved.
         foreach ($validated['equipment'] as $item) {
             if (!$this->inventoryService->checkAvailability(
                 $item['equipment_id'],
                 $item['inventory_id'],
                 $item['quantity']
             )) {
-                return back()->withErrors(['equipment' => 'Some items are no longer available.']);
+                $inventory = EquipmentInventory::with('equipment')->find($item['inventory_id']);
+
+                return back()->withErrors(['equipment' => BorrowingService::notEnoughStockMessage(
+                    $inventory?->equipment?->name, (int) ($inventory?->available_quantity ?? 0)
+                )]);
             }
         }
 

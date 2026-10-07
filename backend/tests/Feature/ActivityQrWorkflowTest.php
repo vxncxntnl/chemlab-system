@@ -151,6 +151,124 @@ class ActivityQrWorkflowTest extends TestCase
         ])->assertSessionHasErrors('faculty_id');
     }
 
+    public function test_enough_stock_lets_the_request_through(): void
+    {
+        $this->actingAs($this->ana)->get($this->qrPath());
+        $this->submit($this->ana, [$this->line($this->beakers, 3)])->assertSessionHasNoErrors();
+
+        $this->assertSame('pending_admin', Borrowing::sole()->status);
+        $this->assertSame(7, $this->beakers->fresh()->available_quantity);
+    }
+
+    public function test_exactly_enough_stock_lets_the_request_through_down_to_zero(): void
+    {
+        $this->beakers->update(['available_quantity' => 2]);
+        $this->actingAs($this->ana)->get($this->qrPath());
+
+        $this->submit($this->ana, [$this->line($this->beakers, 2)])->assertSessionHasNoErrors();
+
+        $this->assertSame(1, Borrowing::count());
+        $this->assertSame(0, $this->beakers->fresh()->available_quantity);
+    }
+
+    public function test_not_enough_stock_is_refused_with_a_clear_message(): void
+    {
+        $this->beakers->update(['available_quantity' => 1]);
+        $this->actingAs($this->ana)->get($this->qrPath());
+
+        $this->submit($this->ana, [$this->line($this->beakers, 2), $this->line($this->burners)])
+            ->assertSessionHasErrors(['equipment' => 'Beaker (250 mL) is currently unavailable because there is not enough stock (only 1 left). Please lower the quantity.']);
+
+        $this->assertSame(0, Borrowing::count(), 'Nothing approved or reserved.');
+        $this->assertSame(1, $this->beakers->fresh()->available_quantity);
+        $this->assertSame(5, $this->burners->fresh()->available_quantity, 'The whole request is refused, not half-saved.');
+    }
+
+    public function test_the_scan_page_names_activity_items_that_are_out_of_stock(): void
+    {
+        $this->beakers->update(['available_quantity' => 0]);
+        $this->actingAs($this->ana)->get($this->qrPath());
+
+        $this->actingAs($this->ana)->get(route('student.borrowings.create', ['activity_id' => $this->activity->id]))
+            ->assertInertia(fn ($page) => $page->where('activityUnavailableItems', ['Beaker (250 mL)']));
+
+        $this->submit($this->ana, [$this->line($this->beakers)])
+            ->assertSessionHasErrors(['equipment' => 'Beaker (250 mL) is currently unavailable because there is not enough stock.']);
+    }
+
+    public function test_many_students_share_the_qr_until_the_stock_runs_out(): void
+    {
+        $this->beakers->update(['available_quantity' => 3]);
+        $students = collect(range(1, 4))->map(fn ($n) => $this->student("Student {$n}", "S-1{$n}"));
+
+        foreach ($students as $n => $student) {
+            $this->actingAs($student)->get($this->qrPath());
+            $response = $this->submit($student, [$this->line($this->beakers)]);
+            if ($n < 3) {
+                $response->assertSessionHasNoErrors();
+                $this->assertSame(2 - $n, $this->beakers->fresh()->available_quantity); // 2, 1, 0
+            } else {
+                $response->assertSessionHasErrors(['equipment' => 'Beaker (250 mL) is currently unavailable because there is not enough stock.']);
+            }
+        }
+
+        $this->assertSame(3, Borrowing::where('activity_id', $this->activity->id)->count(), 'One request per student who got stock.');
+        $this->assertSame(0, $this->beakers->fresh()->available_quantity, 'Never negative.');
+    }
+
+    public function test_two_students_after_the_last_item_only_one_gets_it(): void
+    {
+        $this->beakers->update(['available_quantity' => 1]);
+        // Both open the QR page while 1 is still shown as available.
+        $this->actingAs($this->ana)->get($this->qrPath());
+        $this->actingAs($this->ben)->get($this->qrPath());
+
+        $this->submit($this->ana, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+        $this->submit($this->ben, [$this->line($this->beakers)])->assertSessionHasErrors('equipment');
+
+        $this->assertSame(1, Borrowing::count());
+        $this->assertSame($this->ana->id, Borrowing::sole()->user_id);
+        $this->assertSame(0, $this->beakers->fresh()->available_quantity);
+    }
+
+    public function test_the_final_stock_check_runs_with_the_row_locked_when_saving(): void
+    {
+        // Ben's submit passed the quick check, then Ana took the last one
+        // before his request was saved: the locked re-check stops him.
+        $this->beakers->update(['available_quantity' => 0]);
+        $this->activity->students()->attach($this->ben->id);
+
+        try {
+            app(\App\Services\BorrowingService::class)->createBorrowing([
+                'faculty_id' => $this->faculty->id, 'activity_id' => $this->activity->id,
+                'borrow_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString(),
+            ], [$this->line($this->beakers)], $this->ben->id, notifyFaculty: false);
+            $this->fail('Expected the locked stock check to refuse the request.');
+        } catch (\App\Exceptions\InsufficientInventoryException $e) {
+            $this->assertStringContainsString('Beaker (250 mL) is currently unavailable', $e->getMessage());
+        }
+
+        $this->assertSame(0, Borrowing::count());
+        $this->assertSame(0, $this->beakers->fresh()->available_quantity);
+    }
+
+    public function test_two_submits_at_once_by_one_student_make_only_one_request(): void
+    {
+        $this->activity->students()->attach($this->ana->id);
+        $service = app(\App\Services\BorrowingService::class);
+        $data = ['faculty_id' => $this->faculty->id, 'activity_id' => $this->activity->id, 'borrow_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString()];
+
+        $service->createBorrowing($data, [$this->line($this->beakers)], $this->ana->id, notifyFaculty: false);
+        // A different payload (so not the same-content lock) for the same activity.
+        $this->expectException(\App\Exceptions\DuplicateSubmissionException::class);
+        try {
+            $service->createBorrowing($data, [$this->line($this->burners)], $this->ana->id, notifyFaculty: false);
+        } finally {
+            $this->assertSame(1, Borrowing::count());
+            $this->assertSame(5, $this->burners->fresh()->available_quantity, 'Nothing reserved for the duplicate.');
+        }
+    }
+
     public function test_the_admin_approves_one_students_whole_request_without_touching_the_others(): void
     {
         foreach ([$this->ana, $this->ben] as $student) {

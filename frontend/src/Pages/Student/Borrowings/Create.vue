@@ -39,6 +39,8 @@ const props = defineProps<{
     preselectedActivityId?: number | null;
     // All equipment of the activity whose QR code was scanned.
     activityInventoryIds?: number[];
+    // Names of the activity's items with no stock left right now.
+    activityUnavailableItems?: string[];
     activeBorrowingCount: number;
     maxActiveBorrowings: number;
 }>();
@@ -53,7 +55,7 @@ const initialEquipment = props.preselectedInventory
     : props.availableInventory
         .filter(i => activityItemIds.includes(i.id) && i.available_quantity > 0)
         .map(i => ({ equipment_id: i.equipment_id, inventory_id: i.id, quantity: 1 }));
-const unavailableActivityItems = activityItemIds.length - initialEquipment.length;
+const unavailableActivityItems = props.activityUnavailableItems ?? [];
 
 const form = useForm({
     borrow_date: '',
@@ -227,8 +229,14 @@ const submit = () => {
                 <p class="mt-0.5 text-green-700">
                     Scanned from your instructor's QR code. The equipment for this activity has been added below. Check the quantities, fill in the details and submit.
                 </p>
-                <p v-if="unavailableActivityItems > 0" class="mt-1 text-amber-700">
-                    {{ unavailableActivityItems }} item(s) for this activity are out of stock right now and were left out.
+                <p v-for="name in unavailableActivityItems" :key="name" class="mt-1 font-medium text-red-700">
+                    {{ name }} is currently unavailable because there is not enough stock.
+                </p>
+                <p v-if="unavailableActivityItems.length && !form.equipment.length" class="mt-1 text-amber-700">
+                    None of this activity's equipment is in stock right now, so you can't submit a request yet. Please try again later or ask your instructor.
+                </p>
+                <p v-else-if="unavailableActivityItems.length" class="mt-1 text-amber-700">
+                    These were left out of your request. You can still request the rest.
                 </p>
             </div>
         </div>

@@ -152,6 +152,20 @@ class BorrowingService
      * @throws InsufficientInventoryException if any item no longer has enough stock,
      *         or is held by someone else's approved reservation for the requested dates.
      */
+    /**
+     * e.g. "Beaker is currently unavailable because there is not enough
+     * stock (2 left)." — the same wording for the submit pre-check and the
+     * locked re-check below.
+     */
+    public static function notEnoughStockMessage(?string $name, int $available): string
+    {
+        $name = $name ?: 'This item';
+
+        return $available > 0
+            ? "{$name} is currently unavailable because there is not enough stock (only {$available} left). Please lower the quantity."
+            : "{$name} is currently unavailable because there is not enough stock.";
+    }
+
     private function reserveInventory(array $equipment, ?string $borrowDate = null, ?string $returnDate = null, ?int $userId = null): void
     {
         foreach ($equipment as $item) {
@@ -164,9 +178,9 @@ class BorrowingService
             }
 
             if ($inventory->available_quantity < $item['quantity']) {
-                throw new InsufficientInventoryException(
-                    "Only {$inventory->available_quantity} unit(s) of this item are available now — someone else may have just borrowed the rest."
-                );
+                throw new InsufficientInventoryException(static::notEnoughStockMessage(
+                    $inventory->equipment?->name, $inventory->available_quantity
+                ));
             }
 
             // An approved reservation is meant to actually hold the equipment
@@ -238,6 +252,16 @@ class BorrowingService
                 throw new BorrowingLimitExceededException(
                     'You already have ' . self::MAX_ACTIVE_BORROWINGS . ' active borrowing requests. Please wait for one to be returned before submitting a new request.'
                 );
+            }
+
+            // One active request per student per activity, checked again here
+            // under the borrower's row lock so two submits at the same moment
+            // (double tap, two tabs) can't both get through.
+            if (!empty($data['activity_id']) && Borrowing::where('user_id', $userId)
+                ->where('activity_id', $data['activity_id'])
+                ->whereIn('status', ['pending_faculty', 'pending_admin', 'approved', 'borrowed', 'overdue'])
+                ->exists()) {
+                throw new DuplicateSubmissionException('You already have a request for this activity. You can view it in My Borrowings.');
             }
 
             // Reserve stock FIRST, before creating any records — if this
