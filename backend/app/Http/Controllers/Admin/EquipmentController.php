@@ -48,7 +48,11 @@ class EquipmentController extends Controller
      */
     public function report(Request $request)
     {
-        $query = Equipment::query();
+        // Each size is its own equipment item (e.g. Beaker 250 mL vs 500 mL);
+        // its stock is the sum of its inventory across all campuses.
+        $query = Equipment::query()
+            ->withSum('inventory as total_quantity', 'total_quantity')
+            ->withSum('inventory as available_quantity', 'available_quantity');
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {

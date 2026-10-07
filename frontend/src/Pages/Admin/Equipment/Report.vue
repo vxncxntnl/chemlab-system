@@ -8,6 +8,8 @@ const props = defineProps<{
         serial_number: string | null;
         condition: string;
         is_available: boolean;
+        total_quantity: number | string | null;
+        available_quantity: number | string | null;
     }>;
     filters: {
         search?: string;
@@ -16,7 +18,10 @@ const props = defineProps<{
 }>();
 
 const print = () => window.print();
-const goBack = () => window.history.back();
+
+const qty = (value: number | string | null) => Number(value ?? 0);
+const totalUnits = props.equipment.reduce((sum, item) => sum + qty(item.total_quantity), 0);
+const availableUnits = props.equipment.reduce((sum, item) => sum + qty(item.available_quantity), 0);
 </script>
 
 <template>
@@ -28,10 +33,6 @@ const goBack = () => window.history.back();
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
             </svg>
             Print / Save as PDF
-        </button>
-        <button @click="goBack"
-            class="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 shadow hover:bg-gray-50 transition-colors">
-            ← Back
         </button>
     </div>
 
@@ -45,6 +46,8 @@ const goBack = () => window.history.back();
             <div class="mt-3 flex justify-center gap-8 text-xs text-gray-500">
                 <span>Date Generated: <strong class="text-gray-800">{{ new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) }}</strong></span>
                 <span>Total Items: <strong class="text-gray-800">{{ equipment.length }}</strong></span>
+                <span>Total Units: <strong class="text-gray-800">{{ totalUnits }}</strong></span>
+                <span>Available: <strong class="text-gray-800">{{ availableUnits }}</strong></span>
                 <span v-if="filters.category">Category: <strong class="text-gray-800">{{ filters.category }}</strong></span>
                 <span v-if="filters.search">Search: <strong class="text-gray-800">"{{ filters.search }}"</strong></span>
             </div>
@@ -58,6 +61,8 @@ const goBack = () => window.history.back();
                     <th>Name</th>
                     <th>Category</th>
                     <th>Serial #</th>
+                    <th class="text-center">Total Qty</th>
+                    <th class="text-center">Available</th>
                     <th>Condition</th>
                     <th>Status</th>
                 </tr>
@@ -68,11 +73,13 @@ const goBack = () => window.history.back();
                     <td class="font-medium">{{ item.name }}</td>
                     <td>{{ item.category }}</td>
                     <td>{{ item.serial_number || 'N/A' }}</td>
+                    <td class="text-center font-semibold">{{ qty(item.total_quantity) }}</td>
+                    <td class="text-center">{{ qty(item.available_quantity) }}</td>
                     <td class="capitalize">{{ item.condition }}</td>
                     <td>{{ item.is_available ? 'Available' : 'Unavailable' }}</td>
                 </tr>
                 <tr v-if="equipment.length === 0">
-                    <td colspan="6" class="text-center py-6 text-gray-400">No equipment found.</td>
+                    <td colspan="8" class="text-center py-6 text-gray-400">No equipment found.</td>
                 </tr>
             </tbody>
         </table>
