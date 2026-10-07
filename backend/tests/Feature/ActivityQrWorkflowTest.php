@@ -269,6 +269,59 @@ class ActivityQrWorkflowTest extends TestCase
         }
     }
 
+    public function test_the_admin_can_filter_borrowings_by_activity(): void
+    {
+        foreach ([$this->ana, $this->ben] as $student) {
+            $this->actingAs($student)->get($this->qrPath());
+            $this->submit($student, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+        }
+        Borrowing::create(['user_id' => $this->ana->id, 'borrow_date' => now(), 'return_date' => now()->addDay(), 'status' => 'pending_admin']); // walk-in
+
+        $this->actingAs($this->admin)->get('/admin/borrowings')
+            ->assertInertia(fn ($page) => $page->has('borrowings.data', 3)->where('activities.0.title', 'Titration Lab'));
+
+        $this->actingAs($this->admin)->get("/admin/borrowings?activity_id={$this->activity->id}")
+            ->assertInertia(fn ($page) => $page->has('borrowings.data', 2)->where('activityPendingCount', 2));
+    }
+
+    public function test_approve_all_approves_each_waiting_request_of_the_activity(): void
+    {
+        $students = collect([$this->ana, $this->ben, $this->student('Cara', 'S-3')]);
+        foreach ($students as $student) {
+            $this->actingAs($student)->get($this->qrPath());
+            $this->submit($student, [$this->line($this->beakers), $this->line($this->burners)])->assertSessionHasNoErrors();
+        }
+        // Cara cancels hers; a walk-in request isn't part of the activity.
+        Borrowing::where('user_id', $students[2]->id)->update(['status' => 'cancelled']);
+        $walkIn = Borrowing::create(['user_id' => $this->ben->id, 'borrow_date' => now(), 'return_date' => now()->addDay(), 'status' => 'pending_admin']);
+
+        $this->withoutDefer(); // run the after-response notifications now
+        $this->actingAs($this->admin)->post("/admin/borrowings/activity/{$this->activity->id}/approve-all")
+            ->assertSessionHas('success', '2 request(s) for "Titration Lab" approved.');
+
+        $this->assertSame(['approved', 'approved', 'cancelled'], $students->map(fn ($s) => Borrowing::where('user_id', $s->id)->where('activity_id', $this->activity->id)->value('status'))->all());
+        $this->assertSame('pending_admin', $walkIn->fresh()->status, 'Other requests are untouched.');
+        $this->assertSame(2, Borrowing::where('activity_id', $this->activity->id)->whereNotNull('claim_code')->where('status', 'approved')->distinct()->count('claim_code'), 'Each student keeps their own claim code.');
+        $this->assertSame(7, $this->beakers->fresh()->available_quantity, 'Approving doesn\'t deduct stock again.');
+        foreach ([$this->ana, $this->ben] as $student) {
+            $this->assertTrue(\App\Models\UserNotification::where('user_id', $student->id)->where('title', 'Borrow Request Fully Approved')->exists(), "{$student->name} is notified.");
+        }
+
+        $this->actingAs($this->admin)->post("/admin/borrowings/activity/{$this->activity->id}/approve-all")
+            ->assertSessionHas('error');
+    }
+
+    public function test_only_the_admin_can_approve_all(): void
+    {
+        $this->actingAs($this->ana)->get($this->qrPath());
+        $this->submit($this->ana, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+
+        $this->actingAs($this->faculty)->post("/admin/borrowings/activity/{$this->activity->id}/approve-all")->assertForbidden();
+        $this->actingAs($this->ana)->post("/admin/borrowings/activity/{$this->activity->id}/approve-all")->assertForbidden();
+
+        $this->assertSame('pending_admin', Borrowing::sole()->status);
+    }
+
     public function test_the_admin_approves_one_students_whole_request_without_touching_the_others(): void
     {
         foreach ([$this->ana, $this->ben] as $student) {

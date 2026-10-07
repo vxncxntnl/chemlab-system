@@ -6,6 +6,7 @@ use App\Exceptions\DuplicateSubmissionException;
 use App\Exceptions\InsufficientInventoryException;
 use App\Exceptions\InvalidBorrowingStateException;
 use App\Http\Controllers\Controller;
+use App\Models\Activity;
 use App\Models\Borrowing;
 use App\Models\Campus;
 use App\Models\EquipmentInventory;
@@ -43,12 +44,65 @@ class BorrowingController extends Controller
             });
         }
 
-        $borrowings = $query->orderBy('created_at', 'desc')->paginate(15);
+        // Show one activity's requests together (e.g. a whole class that
+        // scanned the same QR code).
+        if ($request->activity_id) {
+            $query->where('activity_id', $request->activity_id);
+        }
+
+        $borrowings = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+
+        // Activities that have requests, for the filter dropdown.
+        $activities = Activity::with('instructor:id,name')
+            ->whereHas('borrowings')
+            ->orderByDesc('activity_date')
+            ->get(['id', 'title', 'instructor_id', 'activity_date']);
+
+        $selectedActivity = $request->activity_id ? $activities->firstWhere('id', (int) $request->activity_id) : null;
 
         return Inertia::render('Admin/Borrowings/Index', [
             'borrowings' => $borrowings,
-            'filters' => $request->only(['status', 'search']),
+            'filters' => $request->only(['status', 'search', 'activity_id']),
+            'activities' => $activities,
+            // How many of the selected activity's requests "Approve all" would approve.
+            'activityPendingCount' => $selectedActivity
+                ? $selectedActivity->borrowings()->where('status', 'pending_admin')->count()
+                : 0,
         ]);
+    }
+
+    /**
+     * "Approve all" for one activity: approves each of its requests that is
+     * waiting for the admin, one by one through the normal approval (same
+     * checks, history and notifications as approving them individually).
+     * Each student keeps their own request, claim code, release and return.
+     */
+    public function approveActivity(Activity $activity)
+    {
+        $pending = $activity->borrowings()->where('status', 'pending_admin')->get();
+        $admin = auth()->user();
+        $approved = 0;
+        $failed = 0;
+
+        foreach ($pending as $borrowing) {
+            try {
+                $borrowing = $this->borrowingService->approveBorrowing($borrowing, $admin->id);
+                // Emails go out right after the page responds, so approving a
+                // whole class doesn't keep the admin waiting on 20+ emails.
+                defer(fn () => NotificationService::borrowingApprovedByAdmin($borrowing, $admin));
+                $approved++;
+            } catch (InvalidBorrowingStateException $e) {
+                // e.g. another admin approved or cancelled it a moment ago
+                $failed++;
+            }
+        }
+
+        if (!$approved) {
+            return back()->with('error', "No requests for \"{$activity->title}\" are waiting for approval.");
+        }
+
+        return back()->with('success', "{$approved} request(s) for \"{$activity->title}\" approved."
+            . ($failed ? " {$failed} could not be approved (already changed) — check them individually." : ''));
     }
 
     /**

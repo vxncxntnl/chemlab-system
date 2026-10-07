@@ -3,13 +3,14 @@ import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
 import EmptyState from '@/Components/EmptyState.vue';
+import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
 
 const { formatStatus, statusVariant } = useBorrowingStatus();
 
-defineProps<{
+const props = defineProps<{
     borrowings: {
         data: Array<any>;
         current_page: number;
@@ -21,11 +22,32 @@ defineProps<{
     filters: {
         status?: string;
         search?: string;
+        activity_id?: string;
     };
+    // Activities that have requests (for the Activity filter).
+    activities: Array<{ id: number; title: string; activity_date: string; instructor?: { name: string } | null }>;
+    activityPendingCount: number;
 }>();
 
 const search = ref('');
 const statusFilter = ref('');
+const activityFilter = ref(props.filters.activity_id ?? '');
+const selectedActivity = computed(() => props.activities.find(a => a.id === Number(activityFilter.value)));
+
+// "Approve all" for the selected activity's requests waiting for admin.
+const showApproveAll = ref(false);
+const approvingAll = ref(false);
+const approveAll = () => {
+    if (!selectedActivity.value) return;
+    approvingAll.value = true;
+    router.post(route('admin.borrowings.approve-activity', selectedActivity.value.id), {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            approvingAll.value = false;
+            showApproveAll.value = false;
+        },
+    });
+};
 
 const columns = [
     { key: 'user', label: 'Borrower' },
@@ -40,6 +62,7 @@ const applyFilters = () => {
     router.get(route('admin.borrowings.index'), {
         search: search.value,
         status: statusFilter.value,
+        activity_id: activityFilter.value || undefined,
     }, { preserveState: true });
 };
 
@@ -90,6 +113,32 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString();
                 <option value="overdue">Overdue</option>
                 <option value="cancelled">Cancelled</option>
             </select>
+            <select
+                v-model="activityFilter"
+                class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 sm:max-w-xs"
+                @change="applyFilters"
+            >
+                <option value="">All Activities</option>
+                <option v-for="a in activities" :key="a.id" :value="String(a.id)">
+                    {{ a.title }}{{ a.instructor ? ` – ${a.instructor.name}` : '' }}
+                </option>
+            </select>
+        </div>
+
+        <!-- One activity selected: approve its whole class in one click -->
+        <div v-if="selectedActivity" class="mb-4 flex flex-col gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm text-indigo-900">
+                <span class="font-semibold">{{ selectedActivity.title }}</span>
+                — {{ activityPendingCount }} request(s) waiting for admin approval
+            </p>
+            <button
+                v-if="activityPendingCount > 0"
+                type="button"
+                class="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 sm:w-auto"
+                @click="showApproveAll = true"
+            >
+                Approve all {{ activityPendingCount }}
+            </button>
         </div>
 
         <DataTable :columns="columns" :data="borrowings.data" :pagination="borrowings">
@@ -135,5 +184,16 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString();
                 </Link>
             </template>
         </DataTable>
+
+        <ConfirmModal
+            :show="showApproveAll"
+            title="Approve All Requests"
+            :message="`Approve ${activityPendingCount} request(s) for &quot;${selectedActivity?.title}&quot;? Each student keeps their own request and claim code, and each one will be notified.`"
+            :confirmLabel="`Yes, Approve ${activityPendingCount}`"
+            confirmClass="bg-green-600 hover:bg-green-700"
+            :processing="approvingAll"
+            @confirmed="approveAll"
+            @cancelled="showApproveAll = false"
+        />
     </AdminLayout>
 </template>
