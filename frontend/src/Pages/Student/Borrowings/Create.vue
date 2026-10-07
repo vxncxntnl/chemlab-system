@@ -90,6 +90,14 @@ const datesSetByActivity = computed(() =>
     !!props.activities.find(a => a.id === Number(form.activity_id))?.return_date
 );
 
+// The linked activity. Its instructor is the faculty in-charge (the server
+// sets it too), so no faculty is chosen for an activity request.
+const linkedActivity = computed(() => props.activities.find(a => a.id === Number(form.activity_id)));
+// Opened by scanning the activity's QR code: the activity is fixed.
+const fromActivityQr = computed(() =>
+    !!props.preselectedActivityId && linkedActivity.value?.id === props.preselectedActivityId
+);
+
 // Came here via a QR scan with an activity preselected — auto-fill instructor & subject
 onMounted(() => {
     if (props.preselectedActivityId) onActivityChange();
@@ -284,7 +292,22 @@ const submit = () => {
                         <InputError :message="form.errors.purpose" class="mt-2" />
                     </div>
 
-                    <div class="sm:col-span-2" v-if="activities.length">
+                    <!-- From the activity QR: activity and instructor come from the activity -->
+                    <div v-if="fromActivityQr" class="sm:col-span-2 grid grid-cols-1 gap-4 rounded-lg border border-green-200 bg-green-50 p-4 sm:grid-cols-2">
+                        <div>
+                            <p class="text-xs uppercase tracking-wide text-green-700">Laboratory Activity</p>
+                            <p class="text-sm font-semibold text-gray-900">{{ linkedActivity?.title }}</p>
+                            <p class="text-xs text-gray-500">{{ linkedActivity?.department }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase tracking-wide text-green-700">Instructor</p>
+                            <p class="text-sm font-semibold text-gray-900">{{ linkedActivity?.instructor?.name }}</p>
+                            <p class="text-xs text-gray-500">Set automatically from the activity</p>
+                        </div>
+                        <InputError :message="form.errors.activity_id" class="sm:col-span-2" />
+                    </div>
+
+                    <div class="sm:col-span-2" v-else-if="activities.length">
                         <InputLabel for="activity_id" value="Link to Laboratory Activity (Optional)" />
                         <select id="activity_id" v-model="form.activity_id" @change="onActivityChange"
                             class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500">
@@ -300,13 +323,19 @@ const submit = () => {
                     <div>
                         <InputLabel for="subject" value="Activity / Laboratory Subject" />
                         <TextInput id="subject" v-model="form.subject" type="text" class="mt-1 block w-full"
+                            :class="{ 'bg-gray-50 text-gray-600': fromActivityQr }" :readonly="fromActivityQr"
                             placeholder="e.g., Organic Chemistry Laboratory" required />
                         <InputError :message="form.errors.subject" class="mt-2" />
                     </div>
 
-                    <div>
+                    <div v-if="!fromActivityQr">
                         <InputLabel for="faculty_id" value="Assigned Faculty In-Charge" />
+                        <!-- A linked activity's instructor is the faculty in-charge -->
+                        <p v-if="linkedActivity" class="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                            {{ linkedActivity.instructor?.name }}
+                        </p>
                         <FacultyCombobox
+                            v-else
                             v-model="form.faculty_id"
                             :faculties="faculties"
                         />

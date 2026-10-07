@@ -122,7 +122,9 @@ class BorrowingController extends Controller
             // Must be an active faculty account — only role:faculty users can
             // approve, so a request routed to anyone else (e.g. a stale form
             // after that user's role changed) could never be approved.
-            'faculty_id' => ['required', Rule::exists('users', 'id')->where('role', 'faculty')->where('status', 'active')->whereNull('deleted_at')],
+            // Not chosen for an activity request: it's the activity's
+            // instructor (set below).
+            'faculty_id' => ['exclude_unless:activity_id,null', 'required', Rule::exists('users', 'id')->where('role', 'faculty')->where('status', 'active')->whereNull('deleted_at')],
             'activity_id' => 'nullable|exists:activities,id',
             'equipment' => 'required|array|min:1',
             'equipment.*.equipment_id' => 'required|exists:equipment,id',
@@ -187,6 +189,10 @@ class BorrowingController extends Controller
             }
 
             if ($linked) {
+                // The faculty in-charge is always the activity's instructor,
+                // never a value from the form.
+                $validated['faculty_id'] = $linked->instructor_id;
+
                 // The equipment list is the instructor's: a request for the
                 // activity can only include equipment they selected for it
                 // (students may change quantities or leave items out).

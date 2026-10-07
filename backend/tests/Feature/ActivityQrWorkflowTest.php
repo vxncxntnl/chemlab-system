@@ -81,13 +81,14 @@ class ActivityQrWorkflowTest extends TestCase
         return ['equipment_id' => $inv->equipment_id, 'inventory_id' => $inv->id, 'quantity' => $qty];
     }
 
-    private function submit(User $student, array $items)
+    private function submit(User $student, array $items, array $extra = [])
     {
         return $this->actingAs($student)->post('/student/borrowings', [
             'borrow_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString(),
-            'purpose' => 'Titration', 'subject' => 'Titration Lab', 'faculty_id' => $this->faculty->id,
+            'purpose' => 'Titration', 'subject' => 'Titration Lab',
+            // No instructor chosen: it comes from the activity.
             'activity_id' => $this->activity->id, 'equipment' => $items,
-        ]);
+        ] + $extra);
     }
 
     public function test_an_activity_gets_one_qr_code_shown_to_its_instructor_but_not_listed_to_students(): void
@@ -128,6 +129,26 @@ class ActivityQrWorkflowTest extends TestCase
         }
         $this->assertSame(6, $this->beakers->fresh()->available_quantity);
         $this->assertSame(3, $this->burners->fresh()->available_quantity);
+    }
+
+    public function test_the_instructor_comes_from_the_activity_and_cannot_be_changed(): void
+    {
+        $otherFaculty = User::factory()->create(['role' => 'faculty', 'status' => 'active', 'campus_id' => $this->campus->id]);
+        $this->actingAs($this->ana)->get($this->qrPath());
+        $this->actingAs($this->ana)->get(route('student.borrowings.create', ['activity_id' => $this->activity->id]))
+            ->assertInertia(fn ($page) => $page->where('activities.0.instructor.name', $this->faculty->name));
+
+        $this->submit($this->ana, [$this->line($this->beakers)], ['faculty_id' => $otherFaculty->id])->assertSessionHasNoErrors();
+
+        $this->assertSame($this->faculty->id, Borrowing::sole()->faculty_id);
+    }
+
+    public function test_a_walk_in_request_still_needs_a_faculty(): void
+    {
+        $this->actingAs($this->ana)->post('/student/borrowings', [
+            'borrow_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString(),
+            'purpose' => 'Practice', 'subject' => 'Chem', 'equipment' => [$this->line($this->beakers)],
+        ])->assertSessionHasErrors('faculty_id');
     }
 
     public function test_the_admin_approves_one_students_whole_request_without_touching_the_others(): void
