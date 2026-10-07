@@ -76,4 +76,4 @@ EXPOSE 10000
 
 # Start Laravel: run migrations/cache warmup, render the nginx config for the
 # port Render assigns, then run php-fpm and nginx under supervisord
-CMD ["sh", "-c", "php artisan migrate --force && php artisan optimize && PORT=${PORT:-10000} envsubst '${PORT}' < /etc/nginx/nginx-site.conf.template > /etc/nginx/sites-enabled/default.conf && exec supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
+CMD ["sh", "-c", "php artisan migrate --force --isolated && php artisan optimize && PORT=${PORT:-10000} envsubst '${PORT}' < /etc/nginx/nginx-site.conf.template > /etc/nginx/sites-enabled/default.conf && exec supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
