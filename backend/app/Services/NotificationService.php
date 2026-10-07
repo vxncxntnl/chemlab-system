@@ -350,19 +350,22 @@ class NotificationService
     }
 
     /**
-     * A faculty member created this student's account: tell the student how
-     * to sign in (they set their own password — the faculty never sees it).
+     * A faculty member created this student's account (or resent the link):
+     * email a one-time "Set Your Password" link. The faculty never sees the
+     * password. A mail failure is logged, not shown — the student can still
+     * use Forgot password.
      */
     public static function studentAccountCreated(User $student, User $faculty): void
     {
-        self::sendWithEmail(
-            $student,
-            'Your Laboratory Borrowing Account Is Ready',
-            "{$faculty->name} created an account for you in the Science Laboratory Borrowing System. " .
-                'To sign in, open ' . route('login') . ', click "Forgot password?", enter this email address and follow the code sent to you to set your own password. ' .
-                'You can also use "Sign in with Google" with your PHINMA account.',
-            'info'
-        );
+        try {
+            Mail::to($student->email)->send(new \App\Mail\AccountSetupMail(
+                $student,
+                $faculty->name,
+                \App\Support\AccountSetupLink::for($student)
+            ));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     public static function damageReportFiled(DamageReport $report): void

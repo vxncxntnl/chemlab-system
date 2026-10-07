@@ -35,8 +35,8 @@ const inputClass = 'mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-
         <div class="mx-auto max-w-2xl">
             <form @submit.prevent="submit" class="space-y-5 rounded-xl bg-white p-5 shadow-sm sm:p-7">
                 <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    The student will get an email with instructions to set <strong>their own password</strong>
-                    (using Forgot password) or to sign in with Google. You won't see or set their password.
+                    The student will get an email with a <strong>Set Your Password</strong> link (valid for 7 days)
+                    to choose their own password. You won't see or set their password.
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Mail\BorrowingStatusMail;
+use App\Mail\AccountSetupMail;
 use App\Models\Campus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,8 +56,8 @@ class FacultyAddStudentTest extends TestCase
         $this->assertFalse(Hash::check('password', $student->password), 'A random password, never a known one.');
         $this->assertTrue($student->hasCompletedProfile(), 'No Complete Your Profile step needed.');
 
-        Mail::assertSent(BorrowingStatusMail::class, fn ($m) => $m->hasTo($student->email)
-            && str_contains($m->body, 'Prof. Cruz') && str_contains($m->body, 'Forgot password'));
+        Mail::assertSent(AccountSetupMail::class, fn ($m) => $m->hasTo($student->email)
+            && $m->createdBy === 'Prof. Cruz' && str_contains($m->url, '/account/setup/' . $student->id));
         $this->assertDatabaseHas('audit_logs', ['user_id' => $this->faculty->id, 'action' => 'Created Student Account (Faculty)', 'record_id' => $student->id]);
     }
 

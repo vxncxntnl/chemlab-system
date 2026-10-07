@@ -45,6 +45,14 @@ use App\Models\Campus;
 Route::get('/cron/overdue-reminders/{token}', [\App\Http\Controllers\CronController::class, 'overdueReminders'])
     ->middleware('throttle:10,1')->name('cron.overdue-reminders');
 
+// "Set Your Password" link emailed to accounts created on someone's behalf
+// (e.g. a faculty-added student). The link itself is signed, single-use and
+// expiring — checked in the controller so an old link gets a friendly page.
+Route::get('/account/setup/{user}', [\App\Http\Controllers\Auth\AccountSetupController::class, 'show'])
+    ->middleware('throttle:20,1')->name('account.setup');
+Route::post('/account/setup/{user}', [\App\Http\Controllers\Auth\AccountSetupController::class, 'store'])
+    ->middleware('throttle:10,1')->name('account.setup.store');
+
 // Google OAuth routes
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
@@ -251,6 +259,7 @@ Route::middleware(['auth', 'role:faculty', 'throttle:300,1'])->prefix('faculty')
     Route::get('/students', [FacultyStudentController::class, 'index'])->name('students.index');
     Route::get('/students/create', [FacultyStudentController::class, 'create'])->name('students.create');
     Route::post('/students', [FacultyStudentController::class, 'store'])->middleware('throttle:20,1')->name('students.store');
+    Route::post('/students/{student}/resend-setup', [FacultyStudentController::class, 'resendSetupLink'])->middleware('throttle:6,1')->name('students.resend-setup');
 });
 
 // Student Routes

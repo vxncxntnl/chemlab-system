@@ -23,6 +23,16 @@ const props = defineProps<{
 
 const search = ref(props.filters.search ?? '');
 const applySearch = () => router.get(route('faculty.students.index'), { search: search.value }, { preserveState: true, replace: true });
+// Email a fresh "Set Your Password" link to a student who hasn't set one yet.
+const resendingId = ref<number | null>(null);
+const resend = (id: number) => {
+    resendingId.value = id;
+    router.post(route('faculty.students.resend-setup', id), {}, {
+        preserveScroll: true,
+        onFinish: () => { resendingId.value = null; },
+    });
+};
+
 const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
 </script>
 
@@ -57,6 +67,10 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                     <span :class="['mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold', s.email_verified_at ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800']">
                         {{ s.email_verified_at ? 'Active' : 'Waiting to set password' }}
                     </span>
+                    <button v-if="!s.email_verified_at" type="button" @click="resend(s.id)" :disabled="resendingId === s.id"
+                        class="mt-2 ml-2 text-xs font-semibold text-green-700 hover:text-green-900 disabled:opacity-50">
+                        {{ resendingId === s.id ? 'Sending…' : 'Resend link' }}
+                    </button>
                 </div>
             </div>
 
@@ -83,6 +97,10 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                                 <span :class="['rounded-full px-2 py-0.5 text-[11px] font-semibold', s.email_verified_at ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800']">
                                     {{ s.email_verified_at ? 'Active' : 'Waiting to set password' }}
                                 </span>
+                                <button v-if="!s.email_verified_at" type="button" @click="resend(s.id)" :disabled="resendingId === s.id"
+                                    class="ml-2 text-xs font-semibold text-green-700 hover:text-green-900 disabled:opacity-50">
+                                    {{ resendingId === s.id ? 'Sending…' : 'Resend link' }}
+                                </button>
                             </td>
                             <td class="px-5 py-3 text-gray-500">{{ formatDate(s.created_at) }}</td>
                         </tr>

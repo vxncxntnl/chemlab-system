@@ -97,6 +97,26 @@ class StudentController extends Controller
         NotificationService::studentAccountCreated($student, $faculty);
 
         return redirect()->route('faculty.students.index')
-            ->with('success', "Student account created for {$student->name}. They've been emailed instructions to set their password.");
+            ->with('success', "Student account created for {$student->name}. They've been emailed a link to set their password.");
+    }
+
+    /**
+     * Send a fresh "Set Your Password" link (e.g. the first one expired or
+     * got lost) — only for a student this faculty added who hasn't set a
+     * password yet.
+     */
+    public function resendSetupLink(User $student)
+    {
+        if ($student->role !== 'student' || $student->created_by !== auth()->id()) {
+            abort(403);
+        }
+        if ($student->email_verified_at) {
+            return back()->with('info', "{$student->name} has already set their password.");
+        }
+
+        NotificationService::studentAccountCreated($student, auth()->user());
+        AuditLog::log(auth()->id(), 'Resent Student Setup Link (Faculty)', 'users', $student->id);
+
+        return back()->with('success', "A new set-password link was emailed to {$student->name}.");
     }
 }
