@@ -43,30 +43,40 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
-    public function test_student_cannot_authenticate_using_the_password_login_screen(): void
+    public function test_student_can_authenticate_using_email_and_password(): void
     {
-        $user = User::factory()->create(['role' => 'student']);
+        $user = User::factory()->create(['role' => 'student', 'status' => 'active']);
 
         $response = $this->post('/login', [
             'email' => $user->email,
             'password' => 'password',
         ]);
 
-        $this->assertGuest();
-        $response->assertSessionHasErrors('email');
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect(route('dashboard', absolute: false));
     }
 
-    public function test_faculty_cannot_authenticate_using_the_password_login_screen(): void
+    public function test_faculty_can_authenticate_using_email_and_password(): void
     {
-        $user = User::factory()->create(['role' => 'faculty']);
+        $user = User::factory()->create(['role' => 'faculty', 'status' => 'active']);
 
         $response = $this->post('/login', [
             'email' => $user->email,
             'password' => 'password',
         ]);
 
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_a_pending_account_still_cannot_sign_in_with_a_password(): void
+    {
+        $user = User::factory()->create(['role' => 'student', 'status' => 'pending']);
+
+        $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+
         $this->assertGuest();
-        $response->assertSessionHasErrors('email');
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void

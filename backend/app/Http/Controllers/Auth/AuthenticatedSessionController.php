@@ -33,22 +33,11 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
 
-        // The login page labels this form "Admin / Staff login" and points
-        // students/faculty to Google Sign-In instead — enforce that here so
-        // the restriction is real, not just a UI label.
-        //
-        // TEMPORARY — DEFENSE DEMO OVERRIDE: DEMO_ALLOW_ALL_ROLE_PASSWORD_LOGIN
-        // in .env lets every role use this form, so the demo doesn't depend on
-        // venue internet/Google being reachable. Remove this env var (and this
-        // comment block) after the defense — the restriction below is a real
-        // security control the rest of the time, not a demo convenience.
-        if (!env('DEMO_ALLOW_ALL_ROLE_PASSWORD_LOGIN', false) && !in_array($user->role, ['admin', 'lab_staff'], true)) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-            return back()->withErrors(['email' => 'Students and faculty must sign in with your school Google account.']);
-        }
-
+        // Every role can sign in with email + password (Google Sign-In stays
+        // available for PHINMA accounts). Accounts first created via Google
+        // set a password through Forgot Password or Profile > Set a Password.
+        // The pending/suspended checks below and LoginRequest's rate limiting
+        // and account lockout apply to everyone.
         if ($user->status === 'pending') {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
