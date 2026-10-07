@@ -91,7 +91,7 @@ const markNoDamage = (itemId: number) => {
         <template #header>
             <div class="flex flex-wrap items-center gap-2 sm:gap-4">
                 <h1 class="text-xl font-semibold text-gray-800">Borrowing Details</h1>
-                <BackButton :href="route('admin.borrowings.index')">Back to List</BackButton>
+                <BackButton :href="borrowing.activity_id ? route('admin.borrowings.activity', borrowing.activity_id) : route('admin.borrowings.index')">{{ borrowing.activity_id ? 'Back to Students' : 'Back to List' }}</BackButton>
             </div>
         </template>
 

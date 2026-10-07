@@ -15,6 +15,10 @@ use Illuminate\Support\Collection;
 
 class NotificationService
 {
+    // The admin's notification for each QR activity request; the grouped
+    // Borrowings list counts the unread ones per activity.
+    public const QR_REQUEST_TITLE = 'New QR Activity Request — Waiting for Your Approval';
+
     public static function send(User $user, string $title, string $message, string $type = 'info', ?string $link = null): void
     {
         // In-system notification
@@ -148,7 +152,7 @@ class NotificationService
         // a whole class scanning the QR shouldn't flood their inbox.
         User::where('role', 'admin')->where('status', 'active')->each(fn (User $admin) => self::send(
             $admin,
-            'New QR Activity Request — Waiting for Your Approval',
+            self::QR_REQUEST_TITLE,
             "{$borrowing->user->name} requested equipment for the activity \"{$activity->title}\" by scanning its QR code (request #{$borrowing->id}).",
             'info',
             "/admin/borrowings/{$borrowing->id}"

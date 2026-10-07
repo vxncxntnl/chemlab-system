@@ -269,19 +269,108 @@ class ActivityQrWorkflowTest extends TestCase
         }
     }
 
-    public function test_the_admin_can_filter_borrowings_by_activity(): void
+    /** The admin Borrowings list rows, keyed by: 'qr' (the activity's group row) or the walk-in id. */
+    private function adminRows(string $query = ''): \Illuminate\Support\Collection
+    {
+        return collect($this->actingAs($this->admin)->get('/admin/borrowings' . $query)->viewData('page')['props']['borrowings']['data']);
+    }
+
+    public function test_qr_requests_show_as_one_grouped_row_with_a_new_request_count(): void
+    {
+        // 1. One student requests through the QR → one group row, 🔔 1.
+        $this->actingAs($this->ana)->get($this->qrPath());
+        $this->submit($this->ana, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+
+        $rows = $this->adminRows();
+        $this->assertCount(1, $rows);
+        $this->assertSame(['requests' => 1, 'students' => 1, 'need_approval' => 1, 'in_progress' => 0, 'unread' => 1], $rows[0]['group']);
+        $this->assertSame('Titration Lab', $rows[0]['activity']['title']);
+        $this->assertSame($this->faculty->name, $rows[0]['activity']['instructor']['name']);
+
+        // 2. A second student scans the same QR → still ONE row, 🔔 2.
+        $this->actingAs($this->ben)->get($this->qrPath());
+        $this->submit($this->ben, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+
+        $rows = $this->adminRows();
+        $this->assertCount(1, $rows);
+        $this->assertSame(2, $rows[0]['group']['students']);
+        $this->assertSame(2, $rows[0]['group']['unread']);
+        $this->assertSame($this->ben->id, $rows[0]['user_id'], 'The row shows the latest request.');
+
+        // 3. Each student's request is still its own borrowing.
+        $this->assertSame(2, Borrowing::where('activity_id', $this->activity->id)->count());
+    }
+
+    public function test_opening_the_activity_shows_every_student_and_clears_the_count(): void
     {
         foreach ([$this->ana, $this->ben] as $student) {
             $this->actingAs($student)->get($this->qrPath());
             $this->submit($student, [$this->line($this->beakers)])->assertSessionHasNoErrors();
         }
-        Borrowing::create(['user_id' => $this->ana->id, 'borrow_date' => now(), 'return_date' => now()->addDay(), 'status' => 'pending_admin']); // walk-in
 
-        $this->actingAs($this->admin)->get('/admin/borrowings')
-            ->assertInertia(fn ($page) => $page->has('borrowings.data', 3)->where('activities.0.title', 'Titration Lab'));
+        $this->actingAs($this->admin)->get("/admin/borrowings/activity/{$this->activity->id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Admin/Borrowings/Activity', false)
+                ->where('activity.title', 'Titration Lab')
+                ->where('activity.instructor', $this->faculty->name)
+                ->has('requests', 2)
+                ->where('requests.0.user.name', 'Ben')
+                ->where('requests.1.user.email', $this->ana->email)
+                ->where('needApprovalCount', 2));
 
-        $this->actingAs($this->admin)->get("/admin/borrowings?activity_id={$this->activity->id}")
-            ->assertInertia(fn ($page) => $page->has('borrowings.data', 2)->where('activityPendingCount', 2));
+        $this->assertSame(0, $this->adminRows()[0]['group']['unread'], 'Viewed → no longer new.');
+
+        // A later student makes it "1 new" again (not a running total).
+        $cara = $this->student('Cara', 'S-3');
+        $this->actingAs($cara)->get($this->qrPath());
+        $this->submit($cara, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+        $this->assertSame(1, $this->adminRows()[0]['group']['unread']);
+    }
+
+    public function test_the_admin_still_approves_students_one_by_one_from_the_activity(): void
+    {
+        foreach ([$this->ana, $this->ben] as $student) {
+            $this->actingAs($student)->get($this->qrPath());
+            $this->submit($student, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+        }
+        $ana = Borrowing::where('user_id', $this->ana->id)->sole();
+
+        $this->actingAs($this->admin)->from("/admin/borrowings/activity/{$this->activity->id}")
+            ->post("/admin/borrowings/{$ana->id}/approve")
+            ->assertRedirect("/admin/borrowings/activity/{$this->activity->id}");
+
+        $this->assertSame('approved', $ana->fresh()->status);
+        $this->assertSame('pending_admin', Borrowing::where('user_id', $this->ben->id)->value('status'));
+        $this->assertSame(['requests' => 2, 'students' => 2, 'need_approval' => 1, 'in_progress' => 1, 'unread' => 2], $this->adminRows()[0]['group']);
+    }
+
+    public function test_walk_ins_stay_individual_rows_and_filters_still_find_the_group(): void
+    {
+        foreach ([$this->ana, $this->ben] as $student) {
+            $this->actingAs($student)->get($this->qrPath());
+            $this->submit($student, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+        }
+        $walkIns = collect([
+            Borrowing::create(['user_id' => $this->ana->id, 'borrow_date' => now(), 'return_date' => now()->addDay(), 'status' => 'returned']),
+            Borrowing::create(['user_id' => $this->ben->id, 'borrow_date' => now(), 'return_date' => now()->addDay(), 'status' => 'pending_admin']),
+        ]);
+
+        $rows = $this->adminRows();
+        $this->assertCount(3, $rows, '1 activity row + 2 walk-in rows.');
+        $this->assertEqualsCanonicalizing($walkIns->pluck('id')->all(), $rows->whereNull('group')->pluck('id')->all());
+
+        // Search a student inside the group → the activity row is found.
+        $this->assertSame([$this->activity->id], $this->adminRows('?search=Ana')->pluck('activity_id')->filter()->values()->all());
+        // Status filter: the group shows if any of its requests match.
+        $this->assertCount(2, $this->adminRows('?status=pending_admin'), 'The group + Ben\'s walk-in.');
+        $this->assertCount(1, $this->adminRows('?status=returned'), 'Only the returned walk-in.');
+    }
+
+    public function test_only_the_admin_can_open_an_activity_group(): void
+    {
+        $this->actingAs($this->faculty)->get("/admin/borrowings/activity/{$this->activity->id}")->assertForbidden();
+        $this->actingAs($this->ana)->get("/admin/borrowings/activity/{$this->activity->id}")->assertForbidden();
     }
 
     public function test_approve_all_approves_each_waiting_request_of_the_activity(): void

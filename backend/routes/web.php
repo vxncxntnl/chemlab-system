@@ -185,6 +185,7 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     Route::post('/borrowings', [AdminBorrowingController::class, 'store'])->name('borrowings.store');
     Route::get('/borrowings/{borrowing}', [AdminBorrowingController::class, 'show'])->name('borrowings.show');
     Route::post('/borrowings/{borrowing}/approve', [AdminBorrowingController::class, 'approve'])->name('borrowings.approve');
+    Route::get('/borrowings/activity/{activity}', [AdminBorrowingController::class, 'activity'])->name('borrowings.activity');
     Route::post('/borrowings/activity/{activity}/approve-all', [AdminBorrowingController::class, 'approveActivity'])->name('borrowings.approve-activity');
     Route::post('/borrowings/{borrowing}/reject', [AdminBorrowingController::class, 'reject'])->name('borrowings.reject');
     Route::post('/borrowings/{borrowing}/release', [AdminBorrowingController::class, 'release'])->name('borrowings.release');

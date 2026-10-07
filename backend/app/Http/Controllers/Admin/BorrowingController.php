@@ -10,6 +10,7 @@ use App\Models\Activity;
 use App\Models\Borrowing;
 use App\Models\Campus;
 use App\Models\EquipmentInventory;
+use App\Models\UserNotification;
 use App\Services\BorrowingService;
 use App\Services\InventoryService;
 use App\Services\NotificationService;
@@ -26,48 +27,108 @@ class BorrowingController extends Controller
 
     public function index(Request $request)
     {
-        $query = Borrowing::with(['user', 'approver', 'faculty', 'equipment', 'activity:id,title'])
+        // The list's filters, applied to walk-in requests and to the
+        // requests inside each QR activity group alike.
+        $filters = function ($q) use ($request) {
+            if ($request->status) {
+                // Accepts either a single status or an array of statuses (e.g.
+                // the dashboard's "Pending Requests" card links here with both
+                // pending_faculty and pending_admin, matching how it counts them).
+                $q->whereIn('status', (array) $request->status);
+            }
+            if ($request->search) {
+                $q->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$request->search}%"));
+            }
+        };
+
+        // QR activity requests are shown as ONE row per activity (its latest
+        // matching request stands for the group); walk-in/direct requests
+        // stay one row each. Each student's request is still its own
+        // borrowing — this only changes how the list displays them.
+        $latestPerActivity = Borrowing::query()->whereNotNull('activity_id')->where($filters)
+            ->selectRaw('MAX(id)')->groupBy('activity_id');
+
+        $borrowings = Borrowing::with(['user', 'approver', 'faculty', 'equipment', 'activity:id,title,instructor_id', 'activity.instructor:id,name'])
             // Flags requests with an item the student reported as possibly
             // damaged that the staff haven't checked yet.
-            ->withExists(['borrowingEquipment as has_damage_report' => fn ($q) => $q->where('damage_report_status', 'reported')]);
+            ->withExists(['borrowingEquipment as has_damage_report' => fn ($q) => $q->where('damage_report_status', 'reported')])
+            ->where(fn ($q) => $q
+                ->where(fn ($q) => $q->whereNull('activity_id')->where($filters))
+                ->orWhereIn('id', $latestPerActivity))
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->paginate(15)
+            ->withQueryString();
 
-        if ($request->status) {
-            // Accepts either a single status or an array of statuses (e.g.
-            // the dashboard's "Pending Requests" card links here with both
-            // pending_faculty and pending_admin, matching how it counts them).
-            $query->whereIn('status', (array) $request->status);
-        }
-
-        if ($request->search) {
-            $query->whereHas('user', function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%");
-            });
-        }
-
-        // Show one activity's requests together (e.g. a whole class that
-        // scanned the same QR code).
-        if ($request->activity_id) {
-            $query->where('activity_id', $request->activity_id);
-        }
-
-        $borrowings = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
-
-        // Activities that have requests, for the filter dropdown.
-        $activities = Activity::with('instructor:id,name')
-            ->whereHas('borrowings')
-            ->orderByDesc('activity_date')
-            ->get(['id', 'title', 'instructor_id', 'activity_date']);
-
-        $selectedActivity = $request->activity_id ? $activities->firstWhere('id', (int) $request->activity_id) : null;
+        $groups = $this->activityGroupSummaries($borrowings->getCollection()->pluck('activity_id')->filter()->unique()->all());
+        $borrowings->getCollection()->each(function (Borrowing $row) use ($groups) {
+            $row->setAttribute('group', $row->activity_id ? ($groups[$row->activity_id] ?? null) : null);
+        });
 
         return Inertia::render('Admin/Borrowings/Index', [
             'borrowings' => $borrowings,
-            'filters' => $request->only(['status', 'search', 'activity_id']),
-            'activities' => $activities,
-            // How many of the selected activity's requests "Approve all" would approve.
-            'activityPendingCount' => $selectedActivity
-                ? $selectedActivity->borrowings()->where('status', 'pending_admin')->count()
-                : 0,
+            'filters' => $request->only(['status', 'search']),
+        ]);
+    }
+
+    /**
+     * Per activity: how many students requested, how many wait for the
+     * admin, how many are still out, and how many of the admin's "New QR
+     * Activity Request" notifications for it are unread.
+     */
+    private function activityGroupSummaries(array $activityIds): array
+    {
+        if (!$activityIds) {
+            return [];
+        }
+
+        $requests = Borrowing::whereIn('activity_id', $activityIds)->get(['id', 'activity_id', 'user_id', 'status']);
+        $unread = $this->unreadQrNotifications($requests)->get(['link'])
+            ->countBy(fn ($n) => $requests->firstWhere('id', (int) basename($n->link))?->activity_id);
+
+        return $requests->groupBy('activity_id')->map(fn ($rows, $activityId) => [
+            'requests' => $rows->count(),
+            'students' => $rows->pluck('user_id')->unique()->count(),
+            'need_approval' => $rows->where('status', 'pending_admin')->count(),
+            'in_progress' => $rows->whereIn('status', ['pending_faculty', 'approved', 'borrowed', 'overdue'])->count(),
+            'unread' => $unread[$activityId] ?? 0,
+        ])->all();
+    }
+
+    /**
+     * The signed-in admin's unread "New QR Activity Request" notifications
+     * for the given requests (the existing notifications, matched by link).
+     */
+    private function unreadQrNotifications($requests)
+    {
+        return UserNotification::where('user_id', auth()->id())
+            ->whereNull('read_at')
+            ->where('title', NotificationService::QR_REQUEST_TITLE)
+            ->whereIn('link', $requests->map(fn ($b) => "/admin/borrowings/{$b->id}")->all());
+    }
+
+    /**
+     * One QR activity's student requests, opened from its grouped row.
+     * Opening it marks the admin's notifications for them as read.
+     */
+    public function activity(Activity $activity)
+    {
+        $activity->load('instructor:id,name');
+        $requests = $activity->borrowings()
+            ->with(['user:id,name,email', 'borrowingEquipment.equipment:id,name'])
+            ->withExists(['borrowingEquipment as has_damage_report' => fn ($q) => $q->where('damage_report_status', 'reported')])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $this->unreadQrNotifications($requests)->update(['read_at' => now()]);
+
+        return Inertia::render('Admin/Borrowings/Activity', [
+            'activity' => $activity->only(['id', 'title', 'department', 'activity_date', 'return_date', 'status']) + [
+                'instructor' => $activity->instructor?->name,
+            ],
+            'requests' => $requests,
+            'needApprovalCount' => $requests->where('status', 'pending_admin')->count(),
         ]);
     }
 
