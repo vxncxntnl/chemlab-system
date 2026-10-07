@@ -115,4 +115,40 @@ class Activity extends Model
 
         return Carbon::parse($this->activity_date)->lt(Carbon::yesterday());
     }
+
+    /**
+     * Students can still scan its QR and borrow for it: not cancelled or
+     * expired, and its return date (when set) hasn't passed yet. A student
+     * who scans late — after the borrow date but before the return date —
+     * is still allowed (see borrowDateForNewRequest()).
+     */
+    public function isOpenForRequests(): bool
+    {
+        if ($this->status === 'cancelled' || $this->isExpired()) {
+            return false;
+        }
+
+        return !$this->return_date || !Carbon::parse($this->return_date)->lt(Carbon::today());
+    }
+
+    /**
+     * The borrow date for a request made now: the activity's date, or today
+     * for a student who scanned late (a request can't start in the past).
+     */
+    public function borrowDateForNewRequest(): string
+    {
+        return Carbon::parse($this->activity_date)->max(Carbon::today())->toDateString();
+    }
+
+    /**
+     * Why the QR code / activity no longer takes requests.
+     */
+    public function closedMessage(): string
+    {
+        return match (true) {
+            $this->status === 'cancelled' => 'This activity was cancelled by your instructor, so its QR code no longer works.',
+            $this->return_date && Carbon::parse($this->return_date)->lt(Carbon::today()) => "The activity \"{$this->title}\" is already over (its return date has passed), so you can't borrow for it anymore. Please ask your instructor.",
+            default => 'This activity has expired — please ask your instructor for a new QR code.',
+        };
+    }
 }

@@ -144,6 +144,16 @@ class NotificationService
 
     public static function borrowingAutoApprovedViaQr(Borrowing $borrowing, Activity $activity): void
     {
+        // The request now waits for the admin, so tell them — in-app only:
+        // a whole class scanning the QR shouldn't flood their inbox.
+        User::where('role', 'admin')->where('status', 'active')->each(fn (User $admin) => self::send(
+            $admin,
+            'New QR Activity Request — Waiting for Your Approval',
+            "{$borrowing->user->name} requested equipment for the activity \"{$activity->title}\" by scanning its QR code (request #{$borrowing->id}).",
+            'info',
+            "/admin/borrowings/{$borrowing->id}"
+        ));
+
         if (!$borrowing->faculty) {
             return;
         }

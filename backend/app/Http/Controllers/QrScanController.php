@@ -33,8 +33,8 @@ class QrScanController extends Controller
             $activity->increment('qr_scan_count');
         }
 
-        if ($activity->isExpired() || $activity->status === 'cancelled') {
-            $message = static::closedMessage($activity);
+        if (!$activity->isOpenForRequests()) {
+            $message = $activity->closedMessage();
 
             return Auth::check()
                 ? redirect()->route('dashboard')->with('error', $message)
@@ -102,10 +102,10 @@ class QrScanController extends Controller
         }
         [$activity, $itemQr] = $resolved;
 
-        if ($activity->isExpired() || $activity->status === 'cancelled') {
+        if (!$activity->isOpenForRequests()) {
             session()->forget('qr_token');
 
-            return redirect()->route('dashboard')->with('error', static::closedMessage($activity));
+            return redirect()->route('dashboard')->with('error', $activity->closedMessage());
         }
 
         if (!$user->campus_id || !$user->student_id || !$user->course) {
@@ -164,15 +164,5 @@ class QrScanController extends Controller
             'inventory_id' => $itemQr?->equipment_inventory_id,
             'activity_id'  => $activity->id,
         ]));
-    }
-
-    /**
-     * A cancelled activity's QR code stops working just like an expired one's.
-     */
-    private static function closedMessage(Activity $activity): string
-    {
-        return $activity->status === 'cancelled'
-            ? 'This activity was cancelled by your instructor, so its QR code no longer works.'
-            : 'This activity has expired — please ask your instructor for a new QR code.';
     }
 }

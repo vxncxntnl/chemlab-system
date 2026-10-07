@@ -80,7 +80,9 @@ const onActivityChange = () => {
         form.subject = activity.subject ?? activity.title;
         // The faculty set the borrow/return dates on the activity
         if (activity.return_date) {
-            form.borrow_date = activity.activity_date;
+            // Scanned late (after the activity date): borrow from today.
+            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local
+            form.borrow_date = activity.activity_date < today ? today : activity.activity_date;
             form.return_date = activity.return_date;
         }
     }

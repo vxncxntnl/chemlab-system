@@ -114,9 +114,15 @@ class BorrowingController extends Controller
                 ->whereNotNull('return_date')
                 ->whereHas('students', fn ($q) => $q->where('activity_students.student_id', auth()->id()))
                 ->first();
+            // Closed (over, expired or cancelled): say so plainly instead of
+            // a confusing date error.
+            if ($activity && !$activity->isOpenForRequests()) {
+                return back()->withErrors(['activity_id' => $activity->closedMessage()]);
+            }
             if ($activity) {
                 $request->merge([
-                    'borrow_date' => $activity->activity_date->toDateString(),
+                    // Today for a student who scanned after the activity date.
+                    'borrow_date' => $activity->borrowDateForNewRequest(),
                     'return_date' => $activity->return_date->toDateString(),
                 ]);
             }
@@ -191,8 +197,8 @@ class BorrowingController extends Controller
             // A form opened before the activity was cancelled can't still
             // borrow (and get auto-approved) for it.
             $linked = Activity::find($validated['activity_id']);
-            if ($linked && ($linked->status === 'cancelled' || $linked->isExpired())) {
-                return back()->withErrors(['activity_id' => "The activity \"{$linked->title}\" is no longer active, so you can't borrow for it."]);
+            if ($linked && !$linked->isOpenForRequests()) {
+                return back()->withErrors(['activity_id' => $linked->closedMessage()]);
             }
             // Same course rule as the QR scan, enforced here too so it can't
             // be bypassed by submitting an activity_id directly.

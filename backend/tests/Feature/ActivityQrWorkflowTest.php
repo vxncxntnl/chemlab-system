@@ -322,6 +322,47 @@ class ActivityQrWorkflowTest extends TestCase
         $this->assertSame('pending_admin', Borrowing::sole()->status);
     }
 
+    public function test_a_student_who_scans_late_can_still_borrow_from_today(): void
+    {
+        // Activity: borrow tomorrow, return in 2 days. Ana scans on the return day.
+        $this->travelTo(now()->addDays(2)->setTime(9, 0));
+
+        $this->actingAs($this->ana)->get($this->qrPath())
+            ->assertRedirect(route('student.borrowings.create', ['activity_id' => $this->activity->id]));
+        $this->submit($this->ana, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+
+        $borrowing = Borrowing::sole();
+        $this->assertSame(now()->toDateString(), $borrowing->borrow_date->toDateString(), 'Borrows from today, not a past date.');
+        $this->assertSame($this->activity->return_date->toDateString(), $borrowing->return_date->toDateString());
+        $this->assertSame('pending_admin', $borrowing->status);
+    }
+
+    public function test_after_the_return_date_the_qr_clearly_says_the_activity_is_over(): void
+    {
+        $this->actingAs($this->ana)->get($this->qrPath()); // joined in time
+        $this->travelTo(now()->addDays(3)->setTime(9, 0)); // the day after the return date
+
+        $this->actingAs($this->ben)->get($this->qrPath())
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('error', 'The activity "Titration Lab" is already over (its return date has passed), so you can\'t borrow for it anymore. Please ask your instructor.');
+        $this->submit($this->ana, [$this->line($this->beakers)])->assertSessionHasErrors('activity_id');
+
+        $this->assertSame(0, Borrowing::count());
+        $this->assertSame(10, $this->beakers->fresh()->available_quantity);
+    }
+
+    public function test_the_admin_gets_a_bell_notification_but_no_email_for_each_qr_request(): void
+    {
+        $this->actingAs($this->ana)->get($this->qrPath());
+        $this->submit($this->ana, [$this->line($this->beakers)])->assertSessionHasNoErrors();
+
+        $notification = \App\Models\UserNotification::where('user_id', $this->admin->id)->sole();
+        $this->assertSame('New QR Activity Request — Waiting for Your Approval', $notification->title);
+        $this->assertStringContainsString('Ana', $notification->message);
+        $this->assertSame('/admin/borrowings/' . Borrowing::sole()->id, $notification->link);
+        Mail::assertNotSent(\App\Mail\BorrowingStatusMail::class, fn ($mail) => $mail->hasTo($this->admin->email));
+    }
+
     public function test_the_admin_approves_one_students_whole_request_without_touching_the_others(): void
     {
         foreach ([$this->ana, $this->ben] as $student) {
