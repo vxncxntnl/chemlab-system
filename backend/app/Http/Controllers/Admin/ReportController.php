@@ -42,22 +42,27 @@ class ReportController extends Controller
     {
         $year = $request->input('year', date('Y'));
 
-        // PostgreSQL has no strftime() (that's SQLite-only) — EXTRACT() is the
-        // equivalent here. Also note: PostgreSQL treats double-quoted text as
-        // a column/identifier name, not a string literal, so the status
-        // comparisons below must use single quotes.
+        // PostgreSQL (hosted) uses EXTRACT(); SQLite (offline demo database
+        // and tests) has no EXTRACT/::int and uses strftime() instead. Also
+        // note: PostgreSQL treats double-quoted text as a column/identifier
+        // name, not a string literal, so the status comparisons below must
+        // use single quotes.
+        $isPostgres = Borrowing::query()->getConnection()->getDriverName() === 'pgsql';
+        $monthExpr = $isPostgres ? 'EXTRACT(MONTH FROM borrow_date)::int' : "CAST(strftime('%m', borrow_date) AS INTEGER)";
+        $yearExpr = $isPostgres ? 'EXTRACT(YEAR FROM borrow_date)::int' : "CAST(strftime('%Y', borrow_date) AS INTEGER)";
+
         $data = Borrowing::selectRaw("
-                EXTRACT(MONTH FROM borrow_date)::int as month,
+                {$monthExpr} as month,
                 COUNT(*) as total_transactions,
                 SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END) as completed,
                 SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue
             ")
-            ->whereRaw('EXTRACT(YEAR FROM borrow_date) = ?', [$year])
-            ->groupByRaw('EXTRACT(MONTH FROM borrow_date)')
-            ->orderByRaw('EXTRACT(MONTH FROM borrow_date)')
+            ->whereRaw("{$yearExpr} = ?", [(int) $year])
+            ->groupByRaw($monthExpr)
+            ->orderByRaw($monthExpr)
             ->get();
 
-        $years = Borrowing::selectRaw('DISTINCT EXTRACT(YEAR FROM borrow_date)::int as year')
+        $years = Borrowing::selectRaw("DISTINCT {$yearExpr} as year")
             ->orderBy('year', 'desc')
             ->pluck('year');
 

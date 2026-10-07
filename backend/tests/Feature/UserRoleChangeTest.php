@@ -24,11 +24,6 @@ class UserRoleChangeTest extends TestCase
     use RefreshDatabase;
 
     private const PREFIX = ['admin' => 'admin', 'lab_staff' => 'lab', 'faculty' => 'faculty', 'student' => 'student'];
-
-    // Uses PostgreSQL-only SQL (EXTRACT(...)::int), which the in-memory
-    // SQLite test database can't run — unrelated to roles.
-    private const POSTGRES_ONLY_PAGES = ['/admin/reports/monthly'];
-
     private Campus $campus;
     private User $admin;
 
@@ -72,9 +67,7 @@ class UserRoleChangeTest extends TestCase
 
         return collect(Route::getRoutes())
             ->filter(fn ($r) => in_array('GET', $r->methods()) && str_starts_with($r->uri(), "$prefix/") && !str_contains($r->uri(), '{'))
-            ->map(fn ($r) => '/' . $r->uri())
-            ->reject(fn ($uri) => in_array($uri, self::POSTGRES_ONLY_PAGES, true))
-            ->values()
+            ->map(fn ($r) => '/' . $r->uri())            ->values()
             ->all();
     }
 
