@@ -48,11 +48,20 @@ class EquipmentController extends Controller
      */
     public function report(Request $request)
     {
-        // Each size is its own equipment item (e.g. Beaker 250 mL vs 500 mL);
-        // its stock is the sum of its inventory across all campuses.
+        // The report covers one campus: the one picked on the report, else
+        // the admin's own campus, else the first campus set up. Only
+        // equipment stocked there is listed, with that campus's quantities.
+        // Each size is its own equipment item (e.g. Beaker 250 mL vs 500 mL).
+        $campuses = Campus::orderBy('id')->get(['id', 'campus_name']);
+        $campusId = $request->filled('campus_id')
+            ? (int) $request->campus_id
+            : (auth()->user()->campus_id ?? $campuses->first()?->id);
+        $atCampus = fn ($q) => $q->where('campus_id', $campusId);
+
         $query = Equipment::query()
-            ->withSum('inventory as total_quantity', 'total_quantity')
-            ->withSum('inventory as available_quantity', 'available_quantity');
+            ->whereHas('inventory', $atCampus)
+            ->withSum(['inventory as total_quantity' => $atCampus], 'total_quantity')
+            ->withSum(['inventory as available_quantity' => $atCampus], 'available_quantity');
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
@@ -71,6 +80,8 @@ class EquipmentController extends Controller
         return Inertia::render('Admin/Equipment/Report', [
             'equipment' => $equipment,
             'filters' => $request->only(['search', 'category']),
+            'campuses' => $campuses,
+            'campus' => $campuses->firstWhere('id', $campusId),
         ]);
     }
 

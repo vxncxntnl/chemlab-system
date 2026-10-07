@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { router } from '@inertiajs/vue3';
+
 const props = defineProps<{
     equipment: Array<{
         id: number;
@@ -15,9 +17,18 @@ const props = defineProps<{
         search?: string;
         category?: string;
     };
+    campuses: Array<{ id: number; campus_name: string }>;
+    campus: { id: number; campus_name: string } | null;
 }>();
 
 const print = () => window.print();
+
+const changeCampus = (event: Event) => {
+    router.get(route('admin.equipment.report'), {
+        ...props.filters,
+        campus_id: (event.target as HTMLSelectElement).value,
+    });
+};
 
 const qty = (value: number | string | null) => Number(value ?? 0);
 const totalUnits = props.equipment.reduce((sum, item) => sum + qty(item.total_quantity), 0);
@@ -27,6 +38,10 @@ const availableUnits = props.equipment.reduce((sum, item) => sum + qty(item.avai
 <template>
     <!-- Print button — hidden when printing -->
     <div class="no-print fixed top-4 right-4 z-50 flex gap-2">
+        <select v-if="campuses.length > 1" :value="campus?.id" @change="changeCampus" aria-label="Campus"
+            class="rounded-lg border-gray-300 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-gray-700 shadow-lg focus:border-green-500 focus:ring-green-500">
+            <option v-for="c in campuses" :key="c.id" :value="c.id">{{ c.campus_name }}</option>
+        </select>
         <button @click="print"
             class="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-green-700 transition-colors">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -43,6 +58,7 @@ const availableUnits = props.equipment.reduce((sum, item) => sum + qty(item.avai
         <div class="text-center border-b-2 border-gray-800 pb-6 mb-6">
             <p class="text-xs font-semibold tracking-widest uppercase text-gray-500 mb-1">PHINMA College of Cagayan de Oro</p>
             <h1 class="text-2xl font-bold tracking-tight">Laboratory Equipment Report</h1>
+            <p v-if="campus" class="mt-1 text-sm font-medium text-gray-700">{{ campus.campus_name }}</p>
             <div class="mt-3 flex justify-center gap-8 text-xs text-gray-500">
                 <span>Date Generated: <strong class="text-gray-800">{{ new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) }}</strong></span>
                 <span>Total Items: <strong class="text-gray-800">{{ equipment.length }}</strong></span>
