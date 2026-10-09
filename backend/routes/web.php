@@ -136,6 +136,8 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
     Route::post('/damage-reports/{damageReport}/assess', [LabDamageReportController::class, 'assess'])->name('damage-reports.assess');
     Route::post('/damage-reports/{damageReport}/resolve', [LabDamageReportController::class, 'resolve'])->name('damage-reports.resolve');
     Route::post('/damage-reports/{damageReport}/reject', [LabDamageReportController::class, 'reject'])->name('damage-reports.reject');
+    // Edit (POST: may carry a photo upload)
+    Route::post('/damage-reports/{damageReport}/edit', [LabDamageReportController::class, 'update'])->name('damage-reports.update');
 
     // Maintenance logs – create and view only
     Route::get('/maintenance', [LabMaintenanceController::class, 'index'])->name('maintenance.index');
@@ -196,12 +198,15 @@ Route::middleware(['auth', 'role:admin', 'admin.campus', 'throttle:300,1'])->pre
 
     // Damage Reports
     Route::get('/damage-reports', [DamageReportController::class, 'index'])->name('damage-reports.index');
+    // Registered before {damageReport} so "history" is not read as a report ID.
+    Route::get('/damage-reports/history', [DamageReportController::class, 'history'])->name('damage-reports.history');
     Route::get('/damage-reports/{damageReport}', [DamageReportController::class, 'show'])->name('damage-reports.show');
     Route::get('/damage-reports/{damageReport}/print', [DamageReportController::class, 'print'])->name('damage-reports.print');
     Route::get('/damage-reports/{damageReport}/photo', [DamageReportController::class, 'photo'])->name('damage-reports.photo');
     Route::post('/damage-reports/{damageReport}/assess', [DamageReportController::class, 'assess'])->name('damage-reports.assess');
     Route::post('/damage-reports/{damageReport}/resolve', [DamageReportController::class, 'resolve'])->name('damage-reports.resolve');
     Route::post('/damage-reports/{damageReport}/reject', [DamageReportController::class, 'reject'])->name('damage-reports.reject');
+    Route::post('/damage-reports/{damageReport}/edit', [DamageReportController::class, 'update'])->name('damage-reports.update');
     Route::post('/damage-reports/{damageReport}/reopen', [DamageReportController::class, 'reopen'])->name('damage-reports.reopen');
 
     // Reports

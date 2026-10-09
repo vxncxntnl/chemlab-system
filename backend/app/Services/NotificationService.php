@@ -463,6 +463,21 @@ class NotificationService
         ));
     }
 
+    /** Lab staff edited a damage report — the campus admin is told, like for a rejection. */
+    public static function damageReportEditedByLabStaff(DamageReport $report, User $labStaff, string $note): void
+    {
+        $equipment = $report->equipment?->name ?? 'the item';
+        $note = rtrim($note, '. ');
+
+        CampusAccess::adminsFor($labStaff->campus_id)->each(fn (User $admin) => self::sendWithEmail(
+            $admin,
+            'Damage Report Edited by Lab Staff',
+            "Lab staff {$labStaff->name} edited Damage Report #{$report->id} ({$equipment}, borrowing #{$report->borrowing_id}). Note: {$note}. See the report's Decision History for what changed.",
+            'info',
+            "/admin/damage-reports/{$report->id}"
+        ));
+    }
+
     public static function damageReported(Borrowing $borrowing): void
     {
         $user = $borrowing->user;

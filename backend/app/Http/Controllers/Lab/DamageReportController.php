@@ -68,6 +68,17 @@ class DamageReportController extends Controller
         ]);
     }
 
+    public function update(Request $request, DamageReport $damageReport)
+    {
+        $this->abortUnlessOwnCampus($damageReport);
+
+        [$fields, $photo, $note] = DamageReport::editFrom($request);
+
+        app(DamageReportService::class)->edit($damageReport, $fields, $photo, $note, auth()->user());
+
+        return back()->with('success', 'Damage report updated. The admin has been notified.');
+    }
+
     public function reject(Request $request, DamageReport $damageReport)
     {
         $this->abortUnlessOwnCampus($damageReport);

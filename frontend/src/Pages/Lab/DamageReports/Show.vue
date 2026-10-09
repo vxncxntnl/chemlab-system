@@ -9,6 +9,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import DamageReportRejectForm from '@/Components/DamageReportRejectForm.vue';
+import DamageReportEditForm from '@/Components/DamageReportEditForm.vue';
 import DamageReportDecisions from '@/Components/DamageReportDecisions.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
@@ -21,6 +22,7 @@ const props = defineProps<{
 }>();
 
 const showRejectForm = ref(false);
+const showEditForm = ref(false);
 
 const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
@@ -146,7 +148,7 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
             <Card title="Actions">
                 <div class="flex flex-wrap gap-3">
                     <button
-                        v-if="report.status === 'pending' && !showAssessForm && !showRejectForm"
+                        v-if="report.status === 'pending' && !showAssessForm && !showRejectForm && !showEditForm"
                         @click="showAssessForm = true"
                         class="inline-flex items-center px-4 py-2 rounded-lg bg-green-600 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
                     >
@@ -160,7 +162,14 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         Mark as Resolved
                     </button>
                     <button
-                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm && !showAssessForm"
+                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm && !showEditForm && !showAssessForm"
+                        @click="showEditForm = true"
+                        class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                    >
+                        Edit Report
+                    </button>
+                    <button
+                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm && !showEditForm && !showAssessForm"
                         @click="showRejectForm = true"
                         class="inline-flex items-center px-4 py-2 rounded-lg border border-red-300 bg-white text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50 transition-colors"
                     >
@@ -196,6 +205,14 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         <PrimaryButton :disabled="assessForm.processing">Confirm Assessment</PrimaryButton>
                     </div>
                 </form>
+
+                <DamageReportEditForm
+                    v-if="showEditForm"
+                    :action="route('lab.damage-reports.update', report.id)"
+                    :report="report"
+                    note="The admin will be notified, and the change is recorded in the Decision History."
+                    @done="showEditForm = false"
+                />
 
                 <DamageReportRejectForm
                     v-if="showRejectForm"

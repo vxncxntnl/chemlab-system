@@ -75,7 +75,16 @@ const applyFilters = () => {
 <template>
     <AdminLayout>
         <template #header>
-            <h1 class="text-xl font-semibold text-gray-800">Damage Reports</h1>
+            <div class="flex items-center justify-between gap-4 flex-wrap">
+                <h1 class="text-xl font-semibold text-gray-800">Damage Reports</h1>
+                <Link :href="route('admin.damage-reports.history')"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    History
+                </Link>
+            </div>
         </template>
 
         <div class="mb-6 flex flex-col sm:flex-row sm:items-center gap-3">

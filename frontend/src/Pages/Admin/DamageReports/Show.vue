@@ -6,6 +6,7 @@ import Badge from '@/Components/Badge.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import BackButton from '@/Components/BackButton.vue';
 import DamageReportRejectForm from '@/Components/DamageReportRejectForm.vue';
+import DamageReportEditForm from '@/Components/DamageReportEditForm.vue';
 import DamageReportDecisions from '@/Components/DamageReportDecisions.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
@@ -61,6 +62,7 @@ const getStatusBadge = (status: string) => {
 const showAssessModal = ref(false);
 const showResolveModal = ref(false);
 const showRejectForm = ref(false);
+const showEditForm = ref(false);
 const showReopenModal = ref(false);
 const doReopen = () => { router.post(route('admin.damage-reports.reopen', props.report.id), {}, { preserveScroll: true }); showReopenModal.value = false; };
 const doAssess = () => { router.post(route('admin.damage-reports.assess', props.report.id)); showAssessModal.value = false; };
@@ -167,7 +169,14 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                         Mark as Resolved
                     </button>
                     <button
-                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm"
+                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm && !showEditForm"
+                        @click="showEditForm = true"
+                        class="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+                    >
+                        Edit Report
+                    </button>
+                    <button
+                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm && !showEditForm"
                         @click="showRejectForm = true"
                         class="inline-flex items-center px-4 py-2 rounded-lg border border-red-300 bg-white text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50 transition-colors"
                     >
@@ -191,6 +200,13 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                 <p v-if="report.status === 'rejected' && !canReopen" class="mt-3 text-xs text-gray-500">
                     The {{ reopenDays }}-day reopen period for this rejection has passed.
                 </p>
+
+                <DamageReportEditForm
+                    v-if="showEditForm"
+                    :action="route('admin.damage-reports.update', report.id)"
+                    :report="report"
+                    @done="showEditForm = false"
+                />
 
                 <DamageReportRejectForm
                     v-if="showRejectForm"

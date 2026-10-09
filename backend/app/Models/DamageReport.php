@@ -44,6 +44,36 @@ class DamageReport extends Model
     ];
 
     /**
+     * Validates the edit form — the same rules for admin and lab staff.
+     * Returns [fields, photo, note].
+     */
+    public static function editFrom(\Illuminate\Http\Request $request): array
+    {
+        $validated = $request->validate([
+            'description' => 'required|string|max:1000',
+            'quantity' => 'required|integer|min:1',
+            'liable_party' => 'nullable|in:student,faculty,shared',
+            'liable_reason' => 'nullable|string|max:1000',
+            // Checked by real file content; up to 10 MB (phone photos).
+            'photo' => 'nullable|mimes:jpg,jpeg,png,webp|max:10240',
+            'note' => 'required|string|max:500',
+        ], [
+            'note.required' => 'Please say briefly why you are editing this report.',
+        ]);
+
+        return [
+            [
+                'description' => $validated['description'],
+                'quantity' => (int) $validated['quantity'],
+                'liable_party' => $validated['liable_party'] ?? null,
+                'liable_reason' => $validated['liable_reason'] ?? null,
+            ],
+            $request->file('photo'),
+            $validated['note'],
+        ];
+    }
+
+    /**
      * Validates the reject form and returns the reason to store, e.g.
      * "No damage found after inspection — checked twice, no crack".
      */

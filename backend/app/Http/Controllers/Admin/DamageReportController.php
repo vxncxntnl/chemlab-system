@@ -46,6 +46,49 @@ class DamageReportController extends Controller
         ]);
     }
 
+    public function update(Request $request, DamageReport $damageReport)
+    {
+        [$fields, $photo, $note] = DamageReport::editFrom($request);
+
+        app(DamageReportService::class)->edit($damageReport, $fields, $photo, $note, auth()->user());
+
+        return back()->with('success', 'Damage report updated.');
+    }
+
+    /**
+     * Every action on this campus's damage reports (recorded, assessed,
+     * edited, rejected, reopened, resolved), newest first.
+     */
+    public function history(Request $request)
+    {
+        $campusReports = \App\Support\CampusAccess::damageReports(DamageReport::query(), \App\Support\CampusAccess::adminCampusId(auth()->user()))->select('id');
+
+        $logs = AuditLog::with('user:id,name,role')
+            ->where('table_affected', 'damage_reports')
+            ->whereIn('record_id', $campusReports)
+            ->when($request->action, fn ($q, $action) => $q->where('action', 'like', "%{$action}%"))
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        $reports = DamageReport::with('equipment:id,name', 'borrowing.user:id,name')
+            ->whereIn('id', $logs->getCollection()->pluck('record_id'))
+            ->get()->keyBy('id');
+
+        $logs->setCollection($logs->getCollection()->map(fn (AuditLog $log) => DamageReportService::historyEntry($log) + [
+            'report_id' => $log->record_id,
+            'equipment' => $reports[$log->record_id]?->equipment?->name,
+            'borrower' => $reports[$log->record_id]?->borrowing?->user?->name,
+            'status' => $reports[$log->record_id]?->status,
+        ]));
+
+        return Inertia::render('Admin/DamageReports/History', [
+            'entries' => $logs,
+            'filters' => $request->only(['action']),
+        ]);
+    }
+
     public function reject(Request $request, DamageReport $damageReport)
     {
         $reason = DamageReport::rejectionReasonFrom($request);
