@@ -31,7 +31,7 @@ class UserRoleChangeTest extends TestCase
     {
         parent::setUp();
         $this->withoutVite();
-        $this->campus = Campus::create(['campus_name' => 'Main Campus']);
+        $this->campus = Campus::create(['campus_name' => 'PHINMA COC – Carmen']);
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
     }
 
@@ -73,7 +73,9 @@ class UserRoleChangeTest extends TestCase
 
     public static function roleChanges(): array
     {
-        $roles = ['student', 'faculty', 'lab_staff', 'admin'];
+        // Admin isn't in the mix: the system has exactly one admin, so no
+        // account can be changed to or from admin (OneAdminOneLabStaffPerCampusTest).
+        $roles = ['student', 'faculty', 'lab_staff'];
         $cases = [];
         foreach ($roles as $from) {
             foreach ($roles as $to) {
@@ -126,13 +128,12 @@ class UserRoleChangeTest extends TestCase
         $this->assertSame('faculty', $faculty->fresh()->role);
     }
 
-    public function test_an_admin_account_does_not_need_a_campus(): void
+    public function test_an_account_cannot_be_promoted_to_a_second_admin(): void
     {
-        $this->actingAs($this->admin); // a second admin exists, so demotion guards don't apply
         $student = $this->makeUser('student');
 
-        $this->changeRole($student, 'admin', [])->assertSessionHasNoErrors();
-        $this->assertSame('admin', $student->fresh()->role);
+        $this->changeRole($student, 'admin', [])->assertSessionHasErrors(['role']);
+        $this->assertSame('student', $student->fresh()->role);
     }
 
     public function test_a_student_id_already_used_by_another_account_is_rejected(): void

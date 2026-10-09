@@ -178,4 +178,46 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return (bool) ($this->campus_id && $this->student_id && $this->course);
     }
+
+    /*
+     * Account limits: the system has exactly one admin (system-wide), and
+     * each campus has at most one active lab staff account. "Active" lab
+     * staff = not deleted and not suspended, so a suspended account can be
+     * replaced. Enforced in Admin\UserController and by partial unique
+     * indexes on the users table (see the 2026_10_09_000001 migration).
+     */
+
+    /** The existing admin account, other than $exceptId (null if none). */
+    public static function existingAdmin(?int $exceptId = null): ?self
+    {
+        return static::where('role', 'admin')
+            ->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))
+            ->first();
+    }
+
+    /** The campus's active lab staff account, other than $exceptId (null if none). */
+    public static function activeLabStaffAt(?int $campusId, ?int $exceptId = null): ?self
+    {
+        if (!$campusId) {
+            return null;
+        }
+
+        return static::where('role', 'lab_staff')
+            ->where('campus_id', $campusId)
+            ->where('status', '!=', 'suspended')
+            ->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))
+            ->first();
+    }
+
+    /**
+     * The Lab Inventory masterfile (chemistry/physics items) belongs to the
+     * main laboratory at Carmen — it has no campus of its own — so among lab
+     * staff only Carmen's may view or edit it. The admin manages it from the
+     * admin side.
+     */
+    public function managesLabMasterfile(): bool
+    {
+        return $this->role === 'lab_staff'
+            && stripos((string) $this->campus?->campus_name, 'carmen') !== false;
+    }
 }

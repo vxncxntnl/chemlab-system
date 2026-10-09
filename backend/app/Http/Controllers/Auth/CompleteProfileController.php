@@ -17,7 +17,7 @@ class CompleteProfileController extends Controller
     {
         $user = auth()->user();
 
-        if ($user->hasCompletedProfile()) {
+        if (!$this->mayCompleteProfile($user)) {
             return redirect()->route('dashboard');
         }
 
@@ -29,9 +29,24 @@ class CompleteProfileController extends Controller
         ]);
     }
 
+    /**
+     * Only a new student/faculty sign-up that hasn't filled in its profile
+     * yet. Without this, anyone signed in could post here and change their
+     * own campus or role (e.g. a student switching campus, or an admin/lab
+     * staff account turning itself into a student).
+     */
+    private function mayCompleteProfile($user): bool
+    {
+        return in_array($user->role, ['student', 'faculty'], true) && !$user->hasCompletedProfile();
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $user = auth()->user();
+
+        if (!$this->mayCompleteProfile($user)) {
+            return redirect()->route('dashboard');
+        }
 
         $role = $request->input('role', 'student');
 

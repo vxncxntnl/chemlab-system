@@ -55,7 +55,7 @@ class LoginLockoutAccountProtectionTest extends TestCase
     public function test_a_different_account_is_not_affected_by_another_accounts_failed_attempts(): void
     {
         $victim = User::factory()->create(['role' => 'admin', 'status' => 'active', 'password' => 'correct-password']);
-        $unrelated = User::factory()->create(['role' => 'admin', 'status' => 'active', 'password' => 'correct-password']);
+        $unrelated = User::factory()->create(['role' => 'lab_staff', 'status' => 'active', 'password' => 'correct-password']);
 
         for ($i = 0; $i < 10; $i++) {
             $this->post('/login', ['email' => $victim->email, 'password' => 'wrong']);

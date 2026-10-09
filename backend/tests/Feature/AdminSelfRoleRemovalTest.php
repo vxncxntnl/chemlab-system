@@ -29,7 +29,6 @@ class AdminSelfRoleRemovalTest extends TestCase
     public function test_an_admin_cannot_remove_their_own_admin_role(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        User::factory()->create(['role' => 'admin', 'status' => 'active']); // a second admin exists
 
         $response = $this->actingAs($admin)->put("/admin/users/{$admin->id}", [
             'name' => $admin->name,
@@ -55,29 +54,12 @@ class AdminSelfRoleRemovalTest extends TestCase
         $this->assertSame('New Name', $admin->fresh()->name);
     }
 
-    public function test_a_second_admin_can_still_demote_a_different_admin_when_others_remain(): void
-    {
-        $actingAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $targetAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        User::factory()->create(['role' => 'admin', 'status' => 'active']); // a third admin
+    // (The old "a second admin can demote a different admin" case is gone:
+    // the system now allows only one admin — see OneAdminOneLabStaffPerCampusTest.)
 
-        $response = $this->actingAs($actingAdmin)->put("/admin/users/{$targetAdmin->id}", [
-            'name' => $targetAdmin->name,
-            'email' => $targetAdmin->email,
-            'role' => 'faculty',
-            // Faculty accounts require a campus and department.
-            'campus_id' => \App\Models\Campus::create(['campus_name' => 'Main Campus'])->id,
-            'department' => 'Nursing',
-        ]);
-
-        $response->assertSessionHasNoErrors();
-        $this->assertSame('faculty', $targetAdmin->fresh()->role);
-    }
-
-    public function test_self_delete_remains_blocked_regardless_of_admin_count(): void
+    public function test_self_delete_remains_blocked(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        User::factory()->create(['role' => 'admin', 'status' => 'active']);
 
         $response = $this->actingAs($admin)->delete("/admin/users/{$admin->id}");
 

@@ -32,9 +32,14 @@ const departmentCourses: Record<string, string[]> = {
     'Engineering': ['Civil Engineering', 'Electrical Engineering', 'Mechanical Engineering', 'Computer Engineering'],
 };
 
-defineProps<{
+const props = defineProps<{
     campuses: { id: number; campus_name: string }[];
+    // One admin system-wide; one active lab staff per campus (checked again on the server).
+    existingAdmin: { name: string; email: string } | null;
+    labStaffByCampus: Record<number, string>;
 }>();
+
+const campusTaken = (campusId: number) => form.role === 'lab_staff' && !!props.labStaffByCampus[campusId];
 
 const form = useForm({
     name: '',
@@ -118,11 +123,12 @@ const submit = () => {
                             v-model="form.role"
                             class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
                         >
-                            <option value="admin">Admin</option>
+                            <option value="admin" :disabled="!!existingAdmin">Admin{{ existingAdmin ? ' (only one allowed)' : '' }}</option>
                             <option value="lab_staff">Lab Staff</option>
                             <option value="faculty">Faculty</option>
                             <option value="student">Student</option>
                         </select>
+                        <p v-if="existingAdmin" class="mt-1 text-xs text-gray-500">The system already has its admin: {{ existingAdmin.name }}.</p>
                         <InputError :message="form.errors.role" class="mt-2" />
                     </div>
 
@@ -134,8 +140,11 @@ const submit = () => {
                             class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
                         >
                             <option value="" disabled>Select campus</option>
-                            <option v-for="campus in campuses" :key="campus.id" :value="campus.id">{{ campus.campus_name }}</option>
+                            <option v-for="campus in campuses" :key="campus.id" :value="campus.id" :disabled="campusTaken(campus.id)">
+                                {{ campus.campus_name }}{{ campusTaken(campus.id) ? ` — has lab staff (${labStaffByCampus[campus.id]})` : '' }}
+                            </option>
                         </select>
+                        <p v-if="form.role === 'lab_staff'" class="mt-1 text-xs text-gray-500">Each campus can have one active lab staff account.</p>
                         <InputError :message="form.errors.campus_id" class="mt-2" />
                     </div>
 

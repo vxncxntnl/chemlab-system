@@ -33,6 +33,7 @@ class BorrowingController extends Controller
         $preselectedInventory = null;
         if ($request->inventory_id) {
             $preselectedInventory = \App\Models\EquipmentInventory::with(['equipment', 'campus', 'location'])
+                ->where('campus_id', $campusId)
                 ->find($request->inventory_id);
         }
 
@@ -54,8 +55,12 @@ class BorrowingController extends Controller
             'purpose' => 'nullable|string|max:500',
             'equipment' => 'required|array|min:1',
             'equipment.*.equipment_id' => 'required|exists:equipment,id',
-            'equipment.*.inventory_id' => 'required|exists:equipment_inventory,id',
+            // Only stock at this lab staff member's own campus — never trust
+            // an inventory ID from the form for another campus.
+            'equipment.*.inventory_id' => ['required', \Illuminate\Validation\Rule::exists('equipment_inventory', 'id')->where('campus_id', auth()->user()->campus_id)],
             'equipment.*.quantity' => 'required|integer|min:1',
+        ], [
+            'equipment.*.inventory_id.exists' => 'You can only borrow equipment stocked at your own campus.',
         ]);
 
         // The check here is only a fast, friendly first pass — the real

@@ -25,7 +25,7 @@ class LabInventoryRouteTest extends TestCase
 
     public function test_lab_staff_can_load_the_lab_inventory_page(): void
     {
-        $campus = Campus::create(['campus_name' => 'Main Campus']);
+        $campus = Campus::create(['campus_name' => 'PHINMA COC – Carmen']);
         $labStaff = User::factory()->create(['role' => 'lab_staff', 'status' => 'active', 'campus_id' => $campus->id]);
 
         $response = $this->actingAs($labStaff)->get('/lab/lab-inventory');
@@ -35,7 +35,7 @@ class LabInventoryRouteTest extends TestCase
 
     public function test_lab_staff_can_update_a_lab_inventory_item(): void
     {
-        $campus = Campus::create(['campus_name' => 'Main Campus']);
+        $campus = Campus::create(['campus_name' => 'PHINMA COC – Carmen']);
         $labStaff = User::factory()->create(['role' => 'lab_staff', 'status' => 'active', 'campus_id' => $campus->id]);
         $item = LabInventory::create(['lab' => 'chemistry', 'category' => 'general', 'description' => 'Sodium Chloride', 'quantity' => 10]);
 
@@ -66,7 +66,7 @@ class LabInventoryRouteTest extends TestCase
 
     public function test_updating_a_nonexistent_lab_inventory_item_404s(): void
     {
-        $campus = Campus::create(['campus_name' => 'Main Campus']);
+        $campus = Campus::create(['campus_name' => 'PHINMA COC – Carmen']);
         $labStaff = User::factory()->create(['role' => 'lab_staff', 'status' => 'active', 'campus_id' => $campus->id]);
 
         $response = $this->actingAs($labStaff)->put('/lab/lab-inventory/999999', ['quantity' => 1]);
@@ -76,7 +76,7 @@ class LabInventoryRouteTest extends TestCase
 
     public function test_lab_staff_can_reach_the_borrowing_create_form_and_submit_it(): void
     {
-        $campus = Campus::create(['campus_name' => 'Main Campus']);
+        $campus = Campus::create(['campus_name' => 'PHINMA COC – Carmen']);
         $labStaff = User::factory()->create(['role' => 'lab_staff', 'status' => 'active', 'campus_id' => $campus->id]);
 
         $createPage = $this->actingAs($labStaff)->get('/lab/borrowings/create');

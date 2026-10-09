@@ -45,7 +45,7 @@ class NewUserEmailDeliveryTest extends TestCase
         // Accounts that didn't exist when the system was first set up.
         $newLabStaff = User::factory()->create(['role' => 'lab_staff', 'status' => 'active']);
         $newAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $approver = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $approver = $newAdmin; // the system's one admin
 
         NotificationService::borrowingApprovedByAdmin($borrowing->load('user'), $approver);
         NotificationService::borrowingApprovedByFaculty($borrowing->load('user'), $approver);
@@ -69,7 +69,7 @@ class NewUserEmailDeliveryTest extends TestCase
     {
         Mail::fake();
         $campus = Campus::create(['campus_name' => 'Main Campus']);
-        $admins = User::factory()->count(2)->create(['role' => 'admin', 'status' => 'active']);
+        $admins = User::factory()->count(1)->create(['role' => 'admin', 'status' => 'active']); // the system's one admin
         $newFaculty = User::factory()->create(['role' => 'student', 'status' => 'pending', 'campus_id' => null]);
 
         $this->actingAs($newFaculty)->post('/complete-profile', [

@@ -13,6 +13,9 @@ class LabInventoryController extends Controller
 {
     public function index(Request $request)
     {
+        // The masterfile is the Carmen main lab's (see User::managesLabMasterfile).
+        abort_unless(auth()->user()->managesLabMasterfile(), 403);
+
         $user = auth()->user();
         $campusName = $user->campus?->campus_name ?? '';
 
@@ -60,6 +63,8 @@ class LabInventoryController extends Controller
 
     public function update(Request $request, LabInventory $labInventory)
     {
+        abort_unless(auth()->user()->managesLabMasterfile(), 403);
+
         $validated = $request->validate([
             'quantity'          => 'required|integer|min:0',
             'condition_remarks' => 'nullable|string|max:255',

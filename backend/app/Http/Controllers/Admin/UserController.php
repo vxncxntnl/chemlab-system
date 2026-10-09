@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\AuditLog;
 use App\Models\Borrowing;
+use App\Models\Campus;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class UserController extends Controller
@@ -51,6 +53,7 @@ class UserController extends Controller
     {
         return Inertia::render('Admin/Users/Create', [
             'campuses' => \App\Models\Campus::all(),
+            ...$this->accountLimits(),
         ]);
     }
 
@@ -98,7 +101,46 @@ class UserController extends Controller
             $validated['course'] = null;
         }
 
+        // A suspended account doesn't hold the campus's lab staff slot.
+        $this->enforceAccountLimits($validated['role'], $validated['campus_id'] ?? null, $user, $user?->status ?? 'active');
+
         return $validated;
+    }
+
+    /**
+     * One admin for the whole system; one active lab staff per campus.
+     * Checked here on the backend for every create, edit and approval —
+     * the form only mirrors it.
+     */
+    private function enforceAccountLimits(string $role, $campusId, ?User $user, string $status): void
+    {
+        if ($role === 'admin' && ($admin = User::existingAdmin($user?->id))) {
+            throw ValidationException::withMessages([
+                'role' => "The system already has an admin ({$admin->email}). Only one admin account is allowed.",
+            ]);
+        }
+
+        if ($role === 'lab_staff' && $status !== 'suspended' && ($staff = User::activeLabStaffAt((int) $campusId, $user?->id))) {
+            $campus = Campus::find($campusId)?->campus_name ?? 'This campus';
+            throw ValidationException::withMessages([
+                'campus_id' => "{$campus} already has an active lab staff account ({$staff->name}). Only one is allowed per campus — suspend or reassign that account first.",
+            ]);
+        }
+    }
+
+    /** What the user form needs to show which roles/campuses are taken. */
+    private function accountLimits(?User $editing = null): array
+    {
+        $admin = User::existingAdmin($editing?->id);
+
+        return [
+            'existingAdmin' => $admin ? ['name' => $admin->name, 'email' => $admin->email] : null,
+            'labStaffByCampus' => User::where('role', 'lab_staff')
+                ->where('status', '!=', 'suspended')
+                ->whereNotNull('campus_id')
+                ->when($editing, fn ($q) => $q->whereKeyNot($editing->id))
+                ->pluck('name', 'campus_id'),
+        ];
     }
 
     public function store(Request $request)
@@ -121,6 +163,7 @@ class UserController extends Controller
         return Inertia::render('Admin/Users/Edit', [
             'user' => $user,
             'campuses' => \App\Models\Campus::all(),
+            ...$this->accountLimits($user),
         ]);
     }
 
@@ -203,6 +246,13 @@ class UserController extends Controller
 
     public function approve(User $user)
     {
+        // Activating must respect the same limits as creating.
+        try {
+            $this->enforceAccountLimits($user->role, $user->campus_id, $user, 'active');
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        }
+
         $user->update(['status' => 'active']);
 
         AuditLog::log(auth()->id(), 'Approved User', 'users', $user->id);
