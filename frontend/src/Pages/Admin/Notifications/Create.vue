@@ -13,6 +13,8 @@ const props = defineProps<{
         name: string;
         email: string;
         role: string;
+        department: string | null; // department (faculty) / course (student)
+        id_number: string | null;
     }>;
 }>();
 
@@ -25,18 +27,32 @@ const form = useForm({
 
 const selectAll = ref(false);
 const roleFilter = ref('');
+const departmentFilter = ref('');
+const search = ref('');
 
+const departments = computed(() =>
+    [...new Set(props.users.map(u => u.department).filter((d): d is string => !!d))].sort()
+);
+
+// Search ignores upper/lower case: name, email or ID.
 const filteredUsers = computed(() => {
-    if (!roleFilter.value) return props.users;
-    return props.users.filter(u => u.role === roleFilter.value);
+    const term = search.value.trim().toLowerCase();
+    return props.users.filter(u =>
+        (!roleFilter.value || u.role === roleFilter.value)
+        && (!departmentFilter.value || u.department === departmentFilter.value)
+        && (!term || [u.name, u.email, u.id_number ?? ''].some(v => v.toLowerCase().includes(term)))
+    );
 });
 
+const roleLabel = (role: string) =>
+    ({ admin: 'Admin', lab_staff: 'Lab Staff', faculty: 'Faculty', student: 'Student' } as Record<string, string>)[role] ?? role;
+
+// Select All picks only the people currently shown by the filters.
 const toggleSelectAll = () => {
-    if (selectAll.value) {
-        form.user_ids = filteredUsers.value.map(u => u.id);
-    } else {
-        form.user_ids = [];
-    }
+    const shown = filteredUsers.value.map(u => u.id);
+    form.user_ids = selectAll.value
+        ? [...new Set([...form.user_ids, ...shown])]
+        : form.user_ids.filter(id => !shown.includes(id));
 };
 
 const submit = () => {
@@ -84,15 +100,32 @@ const submit = () => {
 
                 <div>
                     <InputLabel value="Recipients" />
-                    <div class="mt-2 flex items-center gap-4 mb-4">
+                    <div class="mt-2 mb-4 flex flex-wrap items-center gap-3">
+                        <input
+                            v-model="search"
+                            type="text"
+                            placeholder="Search name, email or ID..."
+                            class="rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500 sm:w-64"
+                            @input="selectAll = false"
+                        />
                         <select
                             v-model="roleFilter"
                             class="rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+                            @change="selectAll = false"
                         >
                             <option value="">All Roles</option>
                             <option value="admin">Admin</option>
+                            <option value="lab_staff">Lab Staff</option>
                             <option value="faculty">Faculty</option>
                             <option value="student">Student</option>
+                        </select>
+                        <select
+                            v-model="departmentFilter"
+                            class="rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+                            @change="selectAll = false"
+                        >
+                            <option value="">All Departments / Courses</option>
+                            <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
                         </select>
                         <label class="flex items-center">
                             <input
@@ -116,9 +149,13 @@ const submit = () => {
                                 v-model="form.user_ids"
                                 class="rounded border-gray-300 text-green-600 shadow-sm focus:ring-green-500"
                             />
-                            <span class="ml-2 text-sm">{{ user.name }} ({{ user.email }}) - {{ user.role }}</span>
+                            <span class="ml-2 text-sm">
+                                {{ user.name }} ({{ user.email }}) — {{ roleLabel(user.role) }}<span v-if="user.department" class="text-gray-500"> · {{ user.department }}</span>
+                            </span>
                         </label>
+                        <p v-if="filteredUsers.length === 0" class="text-sm text-gray-400">No one matches the search.</p>
                     </div>
+                    <p class="mt-1 text-xs text-gray-500">{{ form.user_ids.length }} selected</p>
                     <InputError :message="form.errors.user_ids" class="mt-2" />
                 </div>
 

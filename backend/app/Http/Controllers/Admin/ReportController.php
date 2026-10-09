@@ -155,23 +155,34 @@ class ReportController extends Controller
 
     public function auditLogs(Request $request)
     {
-        $query = CampusAccess::auditLogs(AuditLog::with('user'), auth()->user())->orderBy('created_at', 'desc');
+        $query = CampusAccess::auditLogs(AuditLog::with('user:id,name,role,department,course'), auth()->user())->orderBy('created_at', 'desc');
 
         if ($request->action) {
-            $query->where('action', 'like', "%{$request->action}%");
+            // Ignores upper/lower case ("created" finds "Created User").
+            $query->whereRaw('LOWER(action) LIKE ?', ['%' . mb_strtolower($request->action) . '%']);
         }
 
         if ($request->user_id) {
             $query->where('user_id', $request->user_id);
         }
 
-        $logs = $query->paginate(20);
-        $users = CampusAccess::users(User::query(), auth()->user())->get(['id', 'name']);
+        // Department for faculty, course for students.
+        if ($request->department) {
+            $query->whereHas('user', fn ($u) => $u->withTrashed()->where(fn ($u) => $u
+                ->where(fn ($u) => $u->where('role', 'faculty')->where('department', $request->department))
+                ->orWhere(fn ($u) => $u->where('role', 'student')->where('course', $request->department))));
+        }
+
+        $logs = $query->paginate(20)->withQueryString();
+        $logs->getCollection()->each(fn (AuditLog $log) => $log->setAttribute('department', User::departmentOf($log->user)));
+
+        $users = CampusAccess::users(User::query(), auth()->user())->orderBy('name')->get(['id', 'name', 'role', 'department', 'course']);
 
         return Inertia::render('Admin/Reports/AuditLogs', [
             'logs' => $logs,
-            'users' => $users,
-            'filters' => $request->only(['action', 'user_id']),
+            'users' => $users->map(fn (User $u) => ['id' => $u->id, 'name' => $u->name, 'department' => User::departmentOf($u)]),
+            'departments' => $users->map(fn (User $u) => User::departmentOf($u))->filter()->unique()->sort()->values(),
+            'filters' => $request->only(['action', 'user_id', 'department']),
         ]);
     }
 }

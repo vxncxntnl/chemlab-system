@@ -13,6 +13,7 @@ const props = defineProps<{
             table_affected: string | null;
             record_id: number | null;
             created_at: string;
+            department: string | null; // department (faculty) / course (student)
             user: {
                 id: number;
                 name: string;
@@ -27,19 +28,24 @@ const props = defineProps<{
     users: Array<{
         id: number;
         name: string;
+        department: string | null;
     }>;
+    departments: string[];
     filters: {
         action?: string;
         user_id?: string;
+        department?: string;
     };
 }>();
 
 const actionFilter = ref(props.filters.action || '');
 const userFilter = ref(props.filters.user_id || '');
+const departmentFilter = ref(props.filters.department || '');
 
 const columns = [
     { key: 'created_at', label: 'Date/Time' },
     { key: 'user', label: 'User' },
+    { key: 'department', label: 'Department' },
     { key: 'action', label: 'Action' },
     { key: 'table_affected', label: 'Table' },
     { key: 'record_id', label: 'Record ID' },
@@ -49,12 +55,14 @@ const applyFilters = () => {
     router.get(route('admin.reports.audit-logs'), {
         action: actionFilter.value,
         user_id: userFilter.value,
+        department: departmentFilter.value,
     }, { preserveState: true });
 };
 
 const clearFilters = () => {
     actionFilter.value = '';
     userFilter.value = '';
+    departmentFilter.value = '';
     router.get(route('admin.reports.audit-logs'));
 };
 </script>
@@ -75,7 +83,7 @@ const clearFilters = () => {
                             id="action"
                             v-model="actionFilter"
                             type="text"
-                            placeholder="e.g., Created, Updated, Deleted"
+                            placeholder="e.g., created, updated, deleted (any case)"
                             class="w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
                             @keyup.enter="applyFilters"
                         />
@@ -90,8 +98,20 @@ const clearFilters = () => {
                         >
                             <option value="">All Users</option>
                             <option v-for="user in users" :key="user.id" :value="user.id">
-                                {{ user.name }}
+                                {{ user.name }}{{ user.department ? ` — ${user.department}` : '' }}
                             </option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Department / Course</label>
+                        <select
+                            id="department"
+                            v-model="departmentFilter"
+                            class="w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
+                            @change="applyFilters"
+                        >
+                            <option value="">All Departments</option>
+                            <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
                         </select>
                     </div>
                     <div class="flex items-end gap-2">
@@ -121,6 +141,9 @@ const clearFilters = () => {
                 </template>
                 <template #cell-user="{ row }">
                     <span class="font-medium text-gray-900">{{ row.user?.name || 'System' }}</span>
+                </template>
+                <template #cell-department="{ value }">
+                    <span class="text-gray-600">{{ value || '—' }}</span>
                 </template>
                 <template #cell-action="{ value }">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"

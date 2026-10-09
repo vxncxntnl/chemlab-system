@@ -186,6 +186,16 @@ class User extends Authenticatable implements MustVerifyEmail
      * and by partial unique indexes on the users table.
      */
 
+    /** Department for faculty, course for students (null for admin/lab staff). */
+    public static function departmentOf(?self $user): ?string
+    {
+        return match ($user?->role) {
+            'faculty' => $user->department,
+            'student' => $user->course,
+            default => null,
+        };
+    }
+
     /** The campus's active admin account, other than $exceptId (null if none). */
     public static function activeAdminAt(?int $campusId, ?int $exceptId = null): ?self
     {

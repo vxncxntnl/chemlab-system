@@ -26,7 +26,18 @@ class NotificationController extends Controller
 
     public function create()
     {
-        $users = \App\Support\CampusAccess::users(User::query(), auth()->user())->select('id', 'name', 'email', 'role')->get();
+        // With department (faculty) / course (student) so recipients can be filtered by it.
+        $users = \App\Support\CampusAccess::users(User::query(), auth()->user())
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'role', 'department', 'course', 'student_id', 'employee_id'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'role' => $u->role,
+                'department' => User::departmentOf($u),
+                'id_number' => $u->student_id ?? $u->employee_id,
+            ]);
 
         return Inertia::render('Admin/Notifications/Create', [
             'users' => $users,
