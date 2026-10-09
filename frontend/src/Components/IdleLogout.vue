@@ -71,6 +71,9 @@ const tick = () => {
 // Another tab logged out (idle or manually): this tab's session is gone too.
 const onStorage = (e: StorageEvent) => {
     if (e.key === LOGOUT_KEY && !loggingOut) {
+        // Also drop this tab's page-history key, so Back from the login
+        // page can't redraw a protected page here.
+        router.clearHistory();
         window.location.href = route('login');
     }
 };

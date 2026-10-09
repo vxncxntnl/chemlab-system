@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -31,6 +32,17 @@ class SecurityHeaders
 
         if ($request->isSecure()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000');
+        }
+
+        // Pages shown to a signed-in user must not be kept by the browser,
+        // or Back after logout could show them again from its cache.
+        // hasUser() only checks a user this request already loaded, so it
+        // never starts a session lookup (e.g. on /up); after logout it's
+        // false, so the login page keeps its normal caching.
+        if (Auth::hasUser()) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private');
+            $response->headers->set('Pragma', 'no-cache');
+            $response->headers->set('Expires', '0');
         }
 
         return $response;

@@ -73,6 +73,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
+        // Drop the browser's key for the encrypted page history, so Back/
+        // Forward after logout can't redraw a protected page from it.
+        // (Stored in the fresh session, read by the next page — login.)
+        Inertia::clearHistory();
+
         // Sent by the inactivity timer (IdleLogout.vue) so the login page
         // can say why the user was signed out.
         if ($request->input('reason') === 'idle') {

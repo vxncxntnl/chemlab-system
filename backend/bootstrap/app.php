@@ -31,6 +31,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnsureAccountIsActive::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            // Inertia keeps each page's data in the browser history so Back
+            // can redraw it without asking the server. Encrypting it (the
+            // key is cleared on logout) means a logged-out Back/Forward
+            // can't redraw a protected page — it re-asks the server, which
+            // sends the user to login.
+            \Inertia\EncryptHistoryMiddleware::class,
         ]);
 
         $middleware->alias([
