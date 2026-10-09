@@ -18,5 +18,7 @@ export type PageProps<
 > = T & {
     auth: {
         user: User;
+        // Main campus (Carmen) admin — also sees system setup menus.
+        is_main_admin?: boolean;
     };
 };

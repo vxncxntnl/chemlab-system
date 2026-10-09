@@ -28,7 +28,8 @@ class DuplicateSubmissionGuardTest extends TestCase
 
     private function makeInventory(int $available): EquipmentInventory
     {
-        $campus = Campus::create(['campus_name' => 'Main Campus']);
+        // All items at one campus (a second campus without an admin is closed for borrowing).
+        $campus = Campus::firstOrCreate(['campus_name' => 'Main Campus']);
         $location = Location::create(['campus_id' => $campus->id, 'location_name' => 'Lab']);
         $equipment = Equipment::create([
             'equipment_code' => 'EQ-' . uniqid(),

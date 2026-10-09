@@ -36,16 +36,18 @@ class NewUserEmailDeliveryTest extends TestCase
     public function test_lab_staff_and_admins_added_later_receive_role_emails(): void
     {
         Mail::fake();
-        $student = User::factory()->create(['role' => 'student', 'status' => 'active']);
+        $campus = Campus::create(['campus_name' => 'PHINMA COC – Carmen']);
+        $student = User::factory()->create(['role' => 'student', 'status' => 'active', 'campus_id' => $campus->id]);
         $borrowing = Borrowing::create([
             'user_id' => $student->id, 'borrow_date' => now(), 'return_date' => now()->addDay(),
             'status' => 'approved', 'claim_code' => 'CHEM-REQ-TEST-' . uniqid(),
         ]);
 
         // Accounts that didn't exist when the system was first set up.
-        $newLabStaff = User::factory()->create(['role' => 'lab_staff', 'status' => 'active']);
-        $newAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $approver = $newAdmin; // the system's one admin
+        // (Notifications go to the borrowing's campus's lab staff and admin.)
+        $newLabStaff = User::factory()->create(['role' => 'lab_staff', 'status' => 'active', 'campus_id' => $campus->id]);
+        $newAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'campus_id' => $campus->id]);
+        $approver = $newAdmin;
 
         NotificationService::borrowingApprovedByAdmin($borrowing->load('user'), $approver);
         NotificationService::borrowingApprovedByFaculty($borrowing->load('user'), $approver);

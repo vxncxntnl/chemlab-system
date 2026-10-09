@@ -13,18 +13,16 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = EquipmentInventory::with(['equipment', 'campus', 'location']);
-
-        if ($request->campus_id) {
-            $query->where('campus_id', $request->campus_id);
-        }
+        // This admin's campus only (the campus filter can't widen it).
+        $campusId = \App\Support\CampusAccess::adminCampusId(auth()->user());
+        $query = EquipmentInventory::with(['equipment', 'campus', 'location'])->where('campus_id', $campusId);
 
         if ($request->low_stock) {
             $query->whereColumn('available_quantity', '<=', 'reorder_level');
         }
 
         $inventory = $query->paginate(15);
-        $campuses = Campus::all();
+        $campuses = Campus::whereKey($campusId)->get();
 
         return Inertia::render('Admin/Inventory/Index', [
             'inventory' => $inventory,

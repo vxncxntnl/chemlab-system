@@ -16,6 +16,7 @@ use App\Models\AuditLog;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Support\CampusAccess;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
@@ -214,8 +215,27 @@ class BorrowingService
             ->exists();
     }
 
+    /**
+     * A campus opens for borrowing once it has its own admin to approve
+     * requests (until then a request would wait with nobody to act on it).
+     */
+    private function ensureBorrowingOpen(array $equipment): void
+    {
+        $campusIds = EquipmentInventory::whereIn('id', collect($equipment)->pluck('inventory_id')->filter())
+            ->distinct()->pluck('campus_id');
+
+        foreach ($campusIds as $campusId) {
+            if (!CampusAccess::borrowingOpenAt((int) $campusId)) {
+                $name = \App\Models\Campus::whereKey($campusId)->value('campus_name') ?? 'this campus';
+                throw new InsufficientInventoryException("Borrowing is not yet available at {$name}. It opens once the campus has its own admin.");
+            }
+        }
+    }
+
     public function createBorrowing(array $data, array $equipment, int $userId, bool $notifyFaculty = true): Borrowing
     {
+        $this->ensureBorrowingOpen($equipment);
+
         if ($this->activeBorrowingCount($userId) >= self::MAX_ACTIVE_BORROWINGS) {
             throw new BorrowingLimitExceededException(
                 'You already have ' . self::MAX_ACTIVE_BORROWINGS . ' active borrowing requests. Please wait for one to be returned before submitting a new request.'
@@ -313,6 +333,8 @@ class BorrowingService
      */
     public function createLabInitiatedBorrowing(array $data, array $equipment, int $labStaffId): Borrowing
     {
+        $this->ensureBorrowingOpen($equipment);
+
         $lock = $this->acquireSubmissionLock($labStaffId, $data, $equipment);
         try {
             return $this->doCreateLabInitiatedBorrowing($data, $equipment, $labStaffId);

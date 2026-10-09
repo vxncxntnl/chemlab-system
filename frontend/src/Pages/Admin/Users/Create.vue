@@ -34,12 +34,22 @@ const departmentCourses: Record<string, string[]> = {
 
 const props = defineProps<{
     campuses: { id: number; campus_name: string }[];
-    // One admin system-wide; one active lab staff per campus (checked again on the server).
-    existingAdmin: { name: string; email: string } | null;
+    // Each campus: one active admin and one active lab staff (checked again on
+    // the server). Only the main campus (Carmen) admin creates admins, and for
+    // other campuses only Admin/Lab Staff accounts.
+    isMainAdmin: boolean;
+    ownCampusId: number;
+    adminByCampus: Record<number, string>;
     labStaffByCampus: Record<number, string>;
 }>();
 
-const campusTaken = (campusId: number) => form.role === 'lab_staff' && !!props.labStaffByCampus[campusId];
+/** Why a campus can't be picked for the chosen role ('' = it can). */
+const campusBlock = (campusId: number): string => {
+    if (form.role === 'admin' && props.adminByCampus[campusId]) return `has admin (${props.adminByCampus[campusId]})`;
+    if (form.role === 'lab_staff' && props.labStaffByCampus[campusId]) return `has lab staff (${props.labStaffByCampus[campusId]})`;
+    if (props.isMainAdmin && ['faculty', 'student'].includes(form.role) && campusId !== props.ownCampusId) return "managed by that campus's admin";
+    return '';
+};
 
 const form = useForm({
     name: '',
@@ -52,7 +62,8 @@ const form = useForm({
     student_id: '',
     employee_id: '',
     contact_number: '',
-    campus_id: '' as number | '',
+    // A campus admin can only pick their own campus — preselect it.
+    campus_id: (props.campuses.length === 1 ? props.campuses[0].id : '') as number | '',
 });
 
 const submit = () => {
@@ -123,16 +134,15 @@ const submit = () => {
                             v-model="form.role"
                             class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
                         >
-                            <option value="admin" :disabled="!!existingAdmin">Admin{{ existingAdmin ? ' (only one allowed)' : '' }}</option>
+                            <option v-if="isMainAdmin" value="admin">Admin</option>
                             <option value="lab_staff">Lab Staff</option>
                             <option value="faculty">Faculty</option>
                             <option value="student">Student</option>
                         </select>
-                        <p v-if="existingAdmin" class="mt-1 text-xs text-gray-500">The system already has its admin: {{ existingAdmin.name }}.</p>
                         <InputError :message="form.errors.role" class="mt-2" />
                     </div>
 
-                    <div v-if="form.role !== 'admin'">
+                    <div>
                         <InputLabel for="campus_id" value="Campus" />
                         <select
                             id="campus_id"
@@ -140,11 +150,11 @@ const submit = () => {
                             class="mt-1 block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
                         >
                             <option value="" disabled>Select campus</option>
-                            <option v-for="campus in campuses" :key="campus.id" :value="campus.id" :disabled="campusTaken(campus.id)">
-                                {{ campus.campus_name }}{{ campusTaken(campus.id) ? ` — has lab staff (${labStaffByCampus[campus.id]})` : '' }}
+                            <option v-for="campus in campuses" :key="campus.id" :value="campus.id" :disabled="!!campusBlock(campus.id)">
+                                {{ campus.campus_name }}{{ campusBlock(campus.id) ? ` — ${campusBlock(campus.id)}` : '' }}
                             </option>
                         </select>
-                        <p v-if="form.role === 'lab_staff'" class="mt-1 text-xs text-gray-500">Each campus can have one active lab staff account.</p>
+                        <p v-if="['admin', 'lab_staff'].includes(form.role)" class="mt-1 text-xs text-gray-500">Each campus can have one active {{ form.role === 'admin' ? 'admin' : 'lab staff' }} account.</p>
                         <InputError :message="form.errors.campus_id" class="mt-2" />
                     </div>
 

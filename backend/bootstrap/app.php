@@ -42,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role'             => \App\Http\Middleware\RoleMiddleware::class,
             'profile.complete' => \App\Http\Middleware\EnsureProfileComplete::class,
+            'admin.campus'     => \App\Http\Middleware\AdminCampusGuard::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

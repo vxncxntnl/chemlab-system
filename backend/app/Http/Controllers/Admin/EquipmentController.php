@@ -9,6 +9,7 @@ use App\Models\Equipment;
 use App\Models\EquipmentInventory;
 use App\Models\Location;
 use App\Models\AuditLog;
+use App\Support\CampusAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -17,7 +18,11 @@ class EquipmentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Equipment::with('inventory.campus', 'inventory.location');
+        // Equipment stocked at this admin's campus, with that campus's stock only.
+        $admin = auth()->user();
+        $campusId = CampusAccess::adminCampusId($admin);
+        $query = CampusAccess::equipment(Equipment::query(), $campusId, CampusAccess::isMainAdmin($admin))
+            ->with(['inventory' => fn ($q) => $q->where('campus_id', $campusId)->with('campus', 'location')]);
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
@@ -32,7 +37,7 @@ class EquipmentController extends Controller
         }
 
         $equipment = $query->paginate(10);
-        $categories = Equipment::distinct()->pluck('category')->filter();
+        $categories = CampusAccess::equipment(Equipment::query(), $campusId)->distinct()->pluck('category')->filter();
 
         return Inertia::render('Admin/Equipment/Index', [
             'equipment' => $equipment,
@@ -52,10 +57,9 @@ class EquipmentController extends Controller
         // the admin's own campus, else the first campus set up. Only
         // equipment stocked there is listed, with that campus's quantities.
         // Each size is its own equipment item (e.g. Beaker 250 mL vs 500 mL).
-        $campuses = Campus::orderBy('id')->get(['id', 'campus_name']);
-        $campusId = $request->filled('campus_id')
-            ? (int) $request->campus_id
-            : (auth()->user()->campus_id ?? $campuses->first()?->id);
+        // Always the admin's own campus.
+        $campusId = CampusAccess::adminCampusId(auth()->user());
+        $campuses = Campus::whereKey($campusId)->get(['id', 'campus_name']);
         $atCampus = fn ($q) => $q->where('campus_id', $campusId);
 
         $query = Equipment::query()
@@ -87,8 +91,9 @@ class EquipmentController extends Controller
 
     public function create()
     {
+        // New stock always goes to the admin's own campus (its Lab Storage Room).
         return Inertia::render('Admin/Equipment/Create', [
-            'campuses' => Campus::with('locations')->get(),
+            'campuses' => Campus::whereKey(CampusAccess::adminCampusId(auth()->user()))->get(),
             'categories' => Category::active()->get(),
         ]);
     }
@@ -107,9 +112,9 @@ class EquipmentController extends Controller
             // embedded <script>, making it a stored-XSS vector if the file
             // is ever opened directly rather than shown inside an <img>.
             'image' => 'nullable|mimes:jpg,jpeg,png,webp|max:10240', // up to 10 MB (phone photos)
-            'inventory' => 'required|array|min:1',
-            'inventory.*.campus_id' => 'required|exists:campuses,id',
-            'inventory.*.location_id' => 'required|exists:locations,id',
+            // One stock entry, at the admin's own campus — campus and room
+            // are set here, never taken from the form.
+            'inventory' => 'required|array|size:1',
             'inventory.*.total_quantity' => 'required|integer|min:1',
             'inventory.*.reorder_level' => 'required|integer|min:0',
         ]);
@@ -139,11 +144,12 @@ class EquipmentController extends Controller
             'is_available' => true,
         ]);
 
+        $campusId = CampusAccess::adminCampusId(auth()->user());
         foreach ($validated['inventory'] as $inv) {
             EquipmentInventory::create([
                 'equipment_id' => $equipment->id,
-                'campus_id' => $inv['campus_id'],
-                'location_id' => $inv['location_id'],
+                'campus_id' => $campusId,
+                'location_id' => CampusAccess::storageRoomId($campusId),
                 'total_quantity' => $inv['total_quantity'],
                 'available_quantity' => $inv['total_quantity'],
                 'reorder_level' => $inv['reorder_level'],
@@ -158,11 +164,12 @@ class EquipmentController extends Controller
 
     public function show(Equipment $equipment)
     {
+        // Only this admin's campus stock and borrowing history.
+        $campusId = CampusAccess::adminCampusId(auth()->user());
+        $atCampus = fn ($q) => $q->where('campus_id', $campusId);
         $equipment->load([
-            'inventory.campus',
-            'inventory.location',
-            'inventory.stockAdjustments.performer',
-            'borrowingEquipment.borrowing.user',
+            'inventory' => fn ($q) => $atCampus($q)->with(['campus', 'location', 'stockAdjustments.performer']),
+            'borrowingEquipment' => fn ($q) => $q->whereHas('inventory', $atCampus)->with('borrowing.user'),
         ]);
 
         return Inertia::render('Admin/Equipment/Show', [
@@ -172,11 +179,12 @@ class EquipmentController extends Controller
 
     public function edit(Equipment $equipment)
     {
-        $equipment->load('inventory');
+        $campusId = CampusAccess::adminCampusId(auth()->user());
+        $equipment->load(['inventory' => fn ($q) => $q->where('campus_id', $campusId)]);
 
         return Inertia::render('Admin/Equipment/Edit', [
             'equipment' => $equipment,
-            'campuses' => Campus::with('locations')->get(),
+            'campuses' => Campus::with('locations')->whereKey($campusId)->get(),
             'categories' => Category::active()->get(),
         ]);
     }

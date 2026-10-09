@@ -9,6 +9,7 @@ class MaintenanceLog extends Model
 {
     protected $fillable = [
         'equipment_id',
+        'campus_id',
         'performed_by',
         'type',
         'description',

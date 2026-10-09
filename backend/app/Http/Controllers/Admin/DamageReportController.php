@@ -17,7 +17,9 @@ class DamageReportController extends Controller
 {
     public function index(Request $request)
     {
-        $query = DamageReport::with(['borrowing.user', 'equipment', 'reporter']);
+        // This admin's campus only.
+        $query = \App\Support\CampusAccess::damageReports(DamageReport::query(), \App\Support\CampusAccess::adminCampusId(auth()->user()))
+            ->with(['borrowing.user', 'equipment', 'reporter']);
 
         if ($request->status) {
             $query->where('status', $request->status);

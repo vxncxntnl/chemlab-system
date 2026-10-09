@@ -132,7 +132,8 @@ class UserRoleChangeTest extends TestCase
     {
         $student = $this->makeUser('student');
 
-        $this->changeRole($student, 'admin', [])->assertSessionHasErrors(['role']);
+        // Carmen already has its admin (one per campus).
+        $this->changeRole($student, 'admin', ['campus_id' => $this->campus->id])->assertSessionHasErrors(['campus_id']);
         $this->assertSame('student', $student->fresh()->role);
     }
 

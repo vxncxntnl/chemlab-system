@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Borrowing;
 use App\Models\Campus;
 use App\Services\NotificationService;
+use App\Support\CampusAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,9 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::with('campus');
+        // Only the users this admin manages (their campus; the main campus
+        // admin also sees other campuses' admin/lab staff accounts).
+        $query = CampusAccess::users(User::query(), auth()->user())->with('campus');
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
@@ -52,7 +55,6 @@ class UserController extends Controller
     public function create()
     {
         return Inertia::render('Admin/Users/Create', [
-            'campuses' => \App\Models\Campus::all(),
             ...$this->accountLimits(),
         ]);
     }
@@ -69,6 +71,13 @@ class UserController extends Controller
     {
         $role = $request->input('role');
 
+        // Editing your own account never changes your campus (or role —
+        // see enforceCampusRights); a missing campus field keeps it as is.
+        $self = $user && $user->id === auth()->id();
+        if ($self && !$request->filled('campus_id')) {
+            $request->merge(['campus_id' => $user->campus_id]);
+        }
+
         $validated = $request->validate([
             'password' => $passwordRules,
             'name' => 'required|string|max:255',
@@ -84,9 +93,10 @@ class UserController extends Controller
             ],
             'employee_id' => 'nullable|string|max:50',
             'contact_number' => 'nullable|string|max:20',
-            'campus_id' => [Rule::requiredIf(in_array($role, ['student', 'faculty', 'lab_staff'], true)), 'nullable', 'exists:campuses,id'],
+            // Every account belongs to a campus (admins too: one per campus).
+            'campus_id' => [$self ? 'nullable' : 'required', 'exists:campuses,id'],
         ], [
-            'campus_id.required' => 'A campus is required for Student, Faculty, and Laboratory Staff accounts.',
+            'campus_id.required' => 'A campus is required.',
             'department.required' => 'A department is required for Faculty accounts.',
             'course.required' => 'A course is required for Student accounts.',
             'student_id.required' => 'A Student ID is required for Student accounts.',
@@ -101,22 +111,60 @@ class UserController extends Controller
             $validated['course'] = null;
         }
 
-        // A suspended account doesn't hold the campus's lab staff slot.
+        if (!$self) {
+            $this->enforceCampusRights($validated['role'], (int) $validated['campus_id'], $user);
+        } elseif ($validated['role'] !== $user->role || (int) ($validated['campus_id'] ?? 0) !== (int) $user->campus_id) {
+            throw ValidationException::withMessages(['role' => 'You cannot change your own role or campus.']);
+        }
+
+        // A suspended account doesn't hold the campus's admin/lab staff slot.
         $this->enforceAccountLimits($validated['role'], $validated['campus_id'] ?? null, $user, $user?->status ?? 'active');
 
         return $validated;
     }
 
     /**
-     * One admin for the whole system; one active lab staff per campus.
-     * Checked here on the backend for every create, edit and approval —
-     * the form only mirrors it.
+     * Which accounts an admin may create or change, by role and campus:
+     *  - a campus admin: lab staff, faculty and students of their own campus;
+     *  - the main campus (Carmen) admin: any role at Carmen, plus the Admin
+     *    and Lab Staff accounts of the other campuses.
+     * Nobody changes their own role or campus.
+     */
+    private function enforceCampusRights(string $role, int $campusId, ?User $user): void
+    {
+        $actor = auth()->user();
+        $own = CampusAccess::adminCampusId($actor);
+
+        if ($user && $user->id === $actor->id && ($role !== $user->role || $campusId !== (int) CampusAccess::adminCampusId($user))) {
+            throw ValidationException::withMessages(['role' => 'You cannot change your own role or campus.']);
+        }
+
+        if (CampusAccess::isMainAdmin($actor)) {
+            if ($campusId !== $own && !in_array($role, ['admin', 'lab_staff'], true)) {
+                throw ValidationException::withMessages(['campus_id' => "For other campuses you can only set up Admin and Lab Staff accounts — that campus's admin manages its faculty and students."]);
+            }
+            return;
+        }
+
+        if ($role === 'admin') {
+            throw ValidationException::withMessages(['role' => 'Only the main campus (Carmen) admin can create admin accounts.']);
+        }
+        if ($campusId !== $own) {
+            throw ValidationException::withMessages(['campus_id' => 'You can only manage accounts of your own campus.']);
+        }
+    }
+
+    /**
+     * One active admin and one active lab staff per campus. Checked here
+     * on the backend for every create, edit and approval — the form only
+     * mirrors it.
      */
     private function enforceAccountLimits(string $role, $campusId, ?User $user, string $status): void
     {
-        if ($role === 'admin' && ($admin = User::existingAdmin($user?->id))) {
+        if ($role === 'admin' && $status !== 'suspended' && ($admin = User::activeAdminAt((int) $campusId, $user?->id))) {
+            $campus = Campus::find($campusId)?->campus_name ?? 'This campus';
             throw ValidationException::withMessages([
-                'role' => "The system already has an admin ({$admin->email}). Only one admin account is allowed.",
+                'campus_id' => "{$campus} already has an active admin ({$admin->name}). Only one is allowed per campus.",
             ]);
         }
 
@@ -128,18 +176,23 @@ class UserController extends Controller
         }
     }
 
-    /** What the user form needs to show which roles/campuses are taken. */
+    /** What the user form needs: allowed campuses, and which slots are taken. */
     private function accountLimits(?User $editing = null): array
     {
-        $admin = User::existingAdmin($editing?->id);
+        $actor = auth()->user();
+        $main = CampusAccess::isMainAdmin($actor);
+        $taken = fn (string $role) => User::where('role', $role)
+            ->where('status', '!=', 'suspended')
+            ->whereNotNull('campus_id')
+            ->when($editing, fn ($q) => $q->whereKeyNot($editing->id))
+            ->pluck('name', 'campus_id');
 
         return [
-            'existingAdmin' => $admin ? ['name' => $admin->name, 'email' => $admin->email] : null,
-            'labStaffByCampus' => User::where('role', 'lab_staff')
-                ->where('status', '!=', 'suspended')
-                ->whereNotNull('campus_id')
-                ->when($editing, fn ($q) => $q->whereKeyNot($editing->id))
-                ->pluck('name', 'campus_id'),
+            'campuses' => $main ? Campus::all() : Campus::whereKey(CampusAccess::adminCampusId($actor))->get(),
+            'isMainAdmin' => $main,
+            'ownCampusId' => CampusAccess::adminCampusId($actor),
+            'adminByCampus' => $taken('admin'),
+            'labStaffByCampus' => $taken('lab_staff'),
         ];
     }
 
@@ -162,7 +215,6 @@ class UserController extends Controller
     {
         return Inertia::render('Admin/Users/Edit', [
             'user' => $user,
-            'campuses' => \App\Models\Campus::all(),
             ...$this->accountLimits($user),
         ]);
     }

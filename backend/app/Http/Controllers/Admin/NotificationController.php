@@ -13,7 +13,9 @@ class NotificationController extends Controller
 {
     public function index()
     {
-        $notifications = UserNotification::with('user')
+        // Notifications of the users this admin manages (their campus).
+        $visible = \App\Support\CampusAccess::users(User::withTrashed(), auth()->user())->select('id');
+        $notifications = UserNotification::with('user')->whereIn('user_id', $visible)
             ->latest()
             ->paginate(15);
 
@@ -24,7 +26,7 @@ class NotificationController extends Controller
 
     public function create()
     {
-        $users = User::select('id', 'name', 'email', 'role')->get();
+        $users = \App\Support\CampusAccess::users(User::query(), auth()->user())->select('id', 'name', 'email', 'role')->get();
 
         return Inertia::render('Admin/Notifications/Create', [
             'users' => $users,
@@ -35,7 +37,7 @@ class NotificationController extends Controller
     {
         $validated = $request->validate([
             'user_ids' => 'required|array',
-            'user_ids.*' => 'exists:users,id',
+            'user_ids.*' => [\Illuminate\Validation\Rule::in(\App\Support\CampusAccess::users(User::query(), auth()->user())->pluck('id')->all())],
             'title' => 'required|string|max:255',
             'message' => 'required|string',
             'type' => 'required|in:info,success,warning,danger',

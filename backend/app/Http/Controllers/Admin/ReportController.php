@@ -9,6 +9,7 @@ use App\Models\BorrowingEquipment;
 use App\Models\Equipment;
 use App\Models\User;
 use App\Services\InventoryService;
+use App\Support\CampusAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -19,9 +20,15 @@ class ReportController extends Controller
     {
     }
 
+    /** Every report covers the signed-in admin's campus only. */
+    private function campusId(): ?int
+    {
+        return CampusAccess::adminCampusId(auth()->user());
+    }
+
     public function lowStock()
     {
-        $items = $this->inventoryService->getLowStockItems();
+        $items = $this->inventoryService->getLowStockItems($this->campusId());
 
         return Inertia::render('Admin/Reports/LowStock', [
             'items' => $items,
@@ -31,7 +38,7 @@ class ReportController extends Controller
     public function mostBorrowed(Request $request)
     {
         $limit = $request->input('limit', 10);
-        $equipment = $this->inventoryService->getMostBorrowedEquipment($limit);
+        $equipment = $this->inventoryService->getMostBorrowedEquipment((int) $limit, $this->campusId());
 
         return Inertia::render('Admin/Reports/MostBorrowed', [
             'equipment' => $equipment,
@@ -51,7 +58,8 @@ class ReportController extends Controller
         $monthExpr = $isPostgres ? 'EXTRACT(MONTH FROM borrow_date)::int' : "CAST(strftime('%m', borrow_date) AS INTEGER)";
         $yearExpr = $isPostgres ? 'EXTRACT(YEAR FROM borrow_date)::int' : "CAST(strftime('%Y', borrow_date) AS INTEGER)";
 
-        $data = Borrowing::selectRaw("
+        $campusId = $this->campusId();
+        $data = CampusAccess::borrowings(Borrowing::query(), $campusId)->selectRaw("
                 {$monthExpr} as month,
                 COUNT(*) as total_transactions,
                 SUM(CASE WHEN status = 'returned' THEN 1 ELSE 0 END) as completed,
@@ -62,7 +70,7 @@ class ReportController extends Controller
             ->orderByRaw($monthExpr)
             ->get();
 
-        $years = Borrowing::selectRaw("DISTINCT {$yearExpr} as year")
+        $years = CampusAccess::borrowings(Borrowing::query(), $campusId)->selectRaw("DISTINCT {$yearExpr} as year")
             ->orderBy('year', 'desc')
             ->pluck('year');
 
@@ -75,11 +83,12 @@ class ReportController extends Controller
 
     public function activeBorrowers()
     {
-        $borrowers = User::withCount(['borrowings as active_borrows' => function ($query) {
-            $query->whereIn('status', ['pending_faculty', 'pending_admin', 'approved', 'borrowed', 'overdue']);
+        $campusId = $this->campusId();
+        $borrowers = User::withCount(['borrowings as active_borrows' => function ($query) use ($campusId) {
+            CampusAccess::borrowings($query, $campusId)->whereIn('status', ['pending_faculty', 'pending_admin', 'approved', 'borrowed', 'overdue']);
         }])
-            ->with(['borrowings' => function ($query) {
-                $query->whereIn('status', ['pending_faculty', 'pending_admin', 'approved', 'borrowed', 'overdue'])
+            ->with(['borrowings' => function ($query) use ($campusId) {
+                CampusAccess::borrowings($query, $campusId)->whereIn('status', ['pending_faculty', 'pending_admin', 'approved', 'borrowed', 'overdue'])
                     ->with('equipment');
             }])
             ->get()
@@ -111,9 +120,9 @@ class ReportController extends Controller
                 $q->whereIn('status', ['borrowed', 'overdue']);
             });
 
-        if ($request->campus_id) {
-            $query->whereHas('inventory', fn ($q) => $q->where('campus_id', $request->campus_id));
-        }
+        // Always this admin's campus (the campus filter can't widen it).
+        $campusId = $this->campusId();
+        $query->whereHas('inventory', fn ($q) => $q->where('campus_id', $campusId));
 
         $items = $query->get()->map(function (BorrowingEquipment $item) {
             $borrowing = $item->borrowing;
@@ -139,14 +148,14 @@ class ReportController extends Controller
 
         return Inertia::render('Admin/Reports/UnreturnedItems', [
             'items' => $items,
-            'campuses' => \App\Models\Campus::all(['id', 'campus_name']),
+            'campuses' => \App\Models\Campus::whereKey($campusId)->get(['id', 'campus_name']),
             'filters' => $request->only(['campus_id']),
         ]);
     }
 
     public function auditLogs(Request $request)
     {
-        $query = AuditLog::with('user')->orderBy('created_at', 'desc');
+        $query = CampusAccess::auditLogs(AuditLog::with('user'), auth()->user())->orderBy('created_at', 'desc');
 
         if ($request->action) {
             $query->where('action', 'like', "%{$request->action}%");
@@ -157,7 +166,7 @@ class ReportController extends Controller
         }
 
         $logs = $query->paginate(20);
-        $users = User::all(['id', 'name']);
+        $users = CampusAccess::users(User::query(), auth()->user())->get(['id', 'name']);
 
         return Inertia::render('Admin/Reports/AuditLogs', [
             'logs' => $logs,

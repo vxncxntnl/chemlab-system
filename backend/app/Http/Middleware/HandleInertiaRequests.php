@@ -2,6 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Borrowing;
+use App\Models\DamageReport;
+use App\Models\User;
+use App\Support\CampusAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
@@ -35,17 +39,8 @@ class HandleInertiaRequests extends Middleware
         $bindings = [$user->id];
 
         switch ($user->role) {
-            case 'admin':
-                $subqueries[] = "(SELECT COUNT(*) FROM users WHERE status = 'pending' AND deleted_at IS NULL) AS pending_users";
-                $subqueries[] = "(SELECT COUNT(*) FROM borrowings WHERE status = 'pending_admin' AND deleted_at IS NULL) AS pending_borrowings";
-                $subqueries[] = "(SELECT COUNT(*) FROM damage_reports WHERE status = 'pending') AS pending_damage_reports";
-                break;
-            case 'lab_staff':
-                // Lab staff no longer approve requests; the badge now reflects
-                // approved requests waiting to be released to the borrower.
-                $subqueries[] = "(SELECT COUNT(*) FROM borrowings WHERE status = 'approved' AND deleted_at IS NULL) AS pending_borrowings";
-                $subqueries[] = "(SELECT COUNT(*) FROM damage_reports WHERE status = 'pending') AS pending_damage_reports";
-                break;
+            // Admin and lab staff badges count their own campus only —
+            // added below with the campus filters.
             case 'faculty':
                 $subqueries[] = "(SELECT COUNT(*) FROM borrowings WHERE faculty_id = ? AND status = 'pending_faculty' AND deleted_at IS NULL) AS pending_borrowings";
                 $bindings[] = $user->id;
@@ -57,6 +52,17 @@ class HandleInertiaRequests extends Middleware
         }
 
         $row = (array) DB::selectOne('SELECT ' . implode(', ', $subqueries), $bindings);
+
+        if (in_array($user->role, ['admin', 'lab_staff'], true)) {
+            $campusId = $user->role === 'admin' ? CampusAccess::adminCampusId($user) : $user->campus_id;
+            if ($user->role === 'admin') {
+                $row['pending_users'] = CampusAccess::users(User::query(), $user)->where('status', 'pending')->count();
+            }
+            // Admin: waiting for approval. Lab staff: approved, waiting for release.
+            $row['pending_borrowings'] = CampusAccess::borrowings(Borrowing::query(), $campusId)
+                ->where('status', $user->role === 'admin' ? 'pending_admin' : 'approved')->count();
+            $row['pending_damage_reports'] = CampusAccess::damageReports(DamageReport::query(), $campusId)->where('status', 'pending')->count();
+        }
 
         $unread = (int) $row['unread_notifications'];
         unset($row['unread_notifications']);
@@ -85,6 +91,8 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                // Main campus (Carmen) admin: also sees system setup menus.
+                'is_main_admin' => $request->user() ? CampusAccess::isMainAdmin($request->user()) : false,
             ],
             'flash' => [
                 'success' => session('success'),

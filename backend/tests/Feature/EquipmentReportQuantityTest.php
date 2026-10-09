@@ -69,13 +69,14 @@ class EquipmentReportQuantityTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('campus.campus_name', 'Iligan')->has('equipment', 2));
     }
 
-    public function test_another_campus_can_be_picked(): void
+    public function test_another_campus_cannot_be_picked(): void
     {
+        // Each admin's report covers their own campus only; asking for
+        // another campus still shows the admin's own (Carmen).
         $this->actingAs($this->admin)->get('/admin/equipment-report?campus_id=' . $this->iligan->id)
             ->assertInertia(fn ($page) => $page
-                ->where('campus.campus_name', 'Iligan')
-                ->where('equipment.0.name', 'Beaker (250 mL)')
-                ->where('equipment.0.total_quantity', fn ($v) => (int) $v === 10)
-                ->where('equipment.1.name', 'Microscope'));
+                ->where('campus.campus_name', 'Carmen')
+                ->has('campuses', 1)
+                ->has('equipment', 2));
     }
 }

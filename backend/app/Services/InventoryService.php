@@ -9,18 +9,24 @@ use Illuminate\Support\Facades\DB;
 
 class InventoryService
 {
-    public function getLowStockItems(): Collection
+    public function getLowStockItems(?int $campusId = null): Collection
     {
         return EquipmentInventory::with(['equipment', 'campus', 'location'])
             ->whereColumn('available_quantity', '<=', 'reorder_level')
+            ->when($campusId, fn ($q) => $q->where('campus_id', $campusId))
             ->get();
     }
 
-    public function getMostBorrowedEquipment(int $limit = 10): Collection
+    public function getMostBorrowedEquipment(int $limit = 10, ?int $campusId = null): Collection
     {
-        return Equipment::withCount(['borrowingEquipment as total_borrowed' => function ($query) {
-            $query->select(\DB::raw('COALESCE(SUM(quantity), 0)'));
+        // With a campus: only that campus's stock and its borrowings count.
+        $atCampus = fn ($q) => $q->where('campus_id', $campusId);
+
+        return Equipment::withCount(['borrowingEquipment as total_borrowed' => function ($query) use ($campusId, $atCampus) {
+            $query->select(\DB::raw('COALESCE(SUM(quantity), 0)'))
+                ->when($campusId, fn ($q) => $q->whereHas('inventory', $atCampus));
         }])
+            ->when($campusId, fn ($q) => $q->whereHas('inventory', $atCampus))
             ->orderByDesc('total_borrowed')
             ->limit($limit)
             ->get();
@@ -49,8 +55,24 @@ class InventoryService
         return $inventory->available_quantity >= $quantity;
     }
 
-    public function getInventoryStats(): array
+    public function getInventoryStats(?int $campusId = null): array
     {
+        if ($campusId) {
+            // One campus: its stock rows, and equipment stocked there.
+            $inv = EquipmentInventory::where('campus_id', $campusId);
+            $total = (int) (clone $inv)->sum('total_quantity');
+            $available = (int) (clone $inv)->sum('available_quantity');
+
+            return [
+                'total_equipment' => Equipment::whereHas('inventory', fn ($q) => $q->where('campus_id', $campusId))->count(),
+                'total_inventory' => $total,
+                'available_inventory' => $available,
+                'borrowed_inventory' => $total - $available,
+                'low_stock_count' => (clone $inv)->whereColumn('available_quantity', '<=', 'reorder_level')->count(),
+                'utilization_rate' => $total > 0 ? round((($total - $available) / $total) * 100, 2) : 0,
+            ];
+        }
+
         // Combines what used to be 4 separate queries (across 2 tables) into
         // a single round trip. Equipment uses soft deletes, so that subquery
         // excludes deleted_at the same way Equipment::count() already did;

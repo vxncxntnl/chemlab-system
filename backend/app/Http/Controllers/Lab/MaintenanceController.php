@@ -17,10 +17,7 @@ class MaintenanceController extends Controller
         $campusId = auth()->user()->campus_id;
 
         // Only show maintenance logs for equipment at this lab staff's campus
-        $logs = MaintenanceLog::with(['equipment', 'performer'])
-            ->whereHas('equipment.inventory', function ($q) use ($campusId) {
-                $q->where('campus_id', $campusId);
-            })
+        $logs = \App\Support\CampusAccess::maintenance(MaintenanceLog::query(), (int) $campusId)->with(['equipment', 'performer'])
             ->latest()
             ->paginate(15);
 
@@ -75,6 +72,7 @@ class MaintenanceController extends Controller
         ]);
 
         $validated['performed_by'] = auth()->id();
+        $validated['campus_id'] = $campusId;
         $validated['cost'] = $validated['cost'] ?? 0;
 
         MaintenanceLog::create($validated);
@@ -93,10 +91,8 @@ class MaintenanceController extends Controller
     {
         $campusId = auth()->user()->campus_id;
 
-        // Ensure this maintenance record belongs to equipment at the lab staff's campus
-        $inCampus = $maintenance->equipment->inventory()
-            ->where('campus_id', $campusId)
-            ->exists();
+        // Ensure this maintenance record belongs to the lab staff's campus
+        $inCampus = \App\Support\CampusAccess::maintenance(MaintenanceLog::query(), (int) $campusId)->whereKey($maintenance->id)->exists();
 
         if (!$inCampus) {
             abort(403);

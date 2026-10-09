@@ -7,14 +7,17 @@ use App\Models\Activity;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\ActivityService;
+use App\Support\CampusAccess;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ActivityController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Activity::with(['instructor', 'students'])
+        // Activities of this admin's campus (by the instructor's campus).
+        $query = CampusAccess::activities(Activity::query(), CampusAccess::adminCampusId(auth()->user()))->with(['instructor', 'students'])
             ->withCount(['borrowings as requests_count' => fn ($q) => $q->withTrashed()]);
 
         if ($request->search) {
@@ -58,8 +61,9 @@ class ActivityController extends Controller
         }
 
         $activity->load('students');
-        $instructors = User::where('role', 'faculty')->where('status', 'active')->orderBy('name')->get();
-        $students    = User::where('role', 'student')->orderBy('name')->get();
+        $campusId    = CampusAccess::adminCampusId(auth()->user());
+        $instructors = User::where('role', 'faculty')->where('status', 'active')->where('campus_id', $campusId)->orderBy('name')->get();
+        $students    = User::where('role', 'student')->where('campus_id', $campusId)->orderBy('name')->get();
 
         return Inertia::render('Admin/Activities/Edit', [
             'activity'    => $activity,
@@ -82,14 +86,15 @@ class ActivityController extends Controller
 
         $validated = $request->validate([
             'title'        => 'required|string|max:255',
-            'instructor_id'=> 'required|exists:users,id',
+            // Own campus only — never trust IDs from the form.
+            'instructor_id'=> ['required', Rule::exists('users', 'id')->where('role', 'faculty')->where('campus_id', CampusAccess::adminCampusId(auth()->user()))],
             'department'   => 'required|string|max:255',
             'activity_date'=> 'required|date',
             'return_date'  => 'required|date|after_or_equal:activity_date',
             'status'       => 'required|in:upcoming,ongoing,completed,cancelled,expired',
             'description'  => 'nullable|string|max:1000',
             'student_ids'  => 'nullable|array',
-            'student_ids.*'=> 'exists:users,id',
+            'student_ids.*'=> [Rule::exists('users', 'id')->where('campus_id', CampusAccess::adminCampusId(auth()->user()))],
         ], [
             'return_date.after_or_equal' => 'The return date must be on or after the borrow date.',
         ]);

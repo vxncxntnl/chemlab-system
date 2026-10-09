@@ -180,17 +180,25 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /*
-     * Account limits: the system has exactly one admin (system-wide), and
-     * each campus has at most one active lab staff account. "Active" lab
-     * staff = not deleted and not suspended, so a suspended account can be
-     * replaced. Enforced in Admin\UserController and by partial unique
-     * indexes on the users table (see the 2026_10_09_000001 migration).
+     * Account limits: each campus has at most one active admin and one
+     * active lab staff account. "Active" = not deleted and not suspended, so
+     * a suspended account can be replaced. Enforced in Admin\UserController
+     * and by partial unique indexes on the users table.
      */
 
-    /** The existing admin account, other than $exceptId (null if none). */
-    public static function existingAdmin(?int $exceptId = null): ?self
+    /** The campus's active admin account, other than $exceptId (null if none). */
+    public static function activeAdminAt(?int $campusId, ?int $exceptId = null): ?self
     {
+        if (!$campusId) {
+            return null;
+        }
+
+        // (An admin with no campus counts as the main campus's.)
+        $main = \App\Support\CampusAccess::mainCampusId();
+
         return static::where('role', 'admin')
+            ->where(fn ($q) => $q->where('campus_id', $campusId)->when($campusId === $main, fn ($q) => $q->orWhereNull('campus_id')))
+            ->where('status', '!=', 'suspended')
             ->when($exceptId, fn ($q) => $q->whereKeyNot($exceptId))
             ->first();
     }

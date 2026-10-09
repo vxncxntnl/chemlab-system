@@ -14,6 +14,7 @@ use App\Models\UserNotification;
 use App\Services\BorrowingService;
 use App\Services\InventoryService;
 use App\Services\NotificationService;
+use App\Support\CampusAccess;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -29,7 +30,10 @@ class BorrowingController extends Controller
     {
         // The list's filters, applied to walk-in requests and to the
         // requests inside each QR activity group alike.
-        $filters = function ($q) use ($request) {
+        // Only borrowings of this admin's campus.
+        $campusId = CampusAccess::adminCampusId(auth()->user());
+        $filters = function ($q) use ($request, $campusId) {
+            CampusAccess::borrowings($q, $campusId);
             if ($request->status) {
                 // Accepts either a single status or an array of statuses (e.g.
                 // the dashboard's "Pending Requests" card links here with both
@@ -177,13 +181,16 @@ class BorrowingController extends Controller
      */
     public function create(Request $request)
     {
-        $campuses = Campus::with('locations')->get();
-        $availableInventory = $this->inventoryService->getAvailableEquipment();
+        // Walk-in requests use this admin's campus stock only.
+        $campusId = CampusAccess::adminCampusId(auth()->user());
+        $campuses = Campus::with('locations')->whereKey($campusId)->get();
+        $availableInventory = $this->inventoryService->getAvailableEquipment($campusId);
 
         $preselectedInventory = null;
         if ($request->inventory_id) {
             $preselectedInventory = EquipmentInventory::with(['equipment', 'campus', 'location'])
                 ->where('available_quantity', '>', 0)
+                ->where('campus_id', $campusId)
                 ->find($request->inventory_id);
         }
 
@@ -202,8 +209,10 @@ class BorrowingController extends Controller
             'purpose' => 'nullable|string|max:500',
             'equipment' => 'required|array|min:1',
             'equipment.*.equipment_id' => 'required|exists:equipment,id',
-            'equipment.*.inventory_id' => 'required|exists:equipment_inventory,id',
+            'equipment.*.inventory_id' => ['required', \Illuminate\Validation\Rule::exists('equipment_inventory', 'id')->where('campus_id', CampusAccess::adminCampusId(auth()->user()))],
             'equipment.*.quantity' => 'required|integer|min:1',
+        ], [
+            'equipment.*.inventory_id.exists' => 'You can only use equipment stocked at your own campus.',
         ]);
 
         foreach ($validated['equipment'] as $item) {

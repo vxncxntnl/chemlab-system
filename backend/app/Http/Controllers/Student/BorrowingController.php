@@ -94,6 +94,8 @@ class BorrowingController extends Controller
 
         return Inertia::render('Student/Borrowings/Create', [
             'campuses' => $campuses,
+            // Closed until this campus has its own admin to approve requests.
+            'borrowingOpen' => \App\Support\CampusAccess::borrowingOpenAt(auth()->user()->campus_id),
             'availableInventory' => $availableInventory,
             'faculties' => $faculties,
             'activities' => $activities,

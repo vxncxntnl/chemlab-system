@@ -149,7 +149,7 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
 });
 
 // Admin Routes
-Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin', 'admin.campus', 'throttle:300,1'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
     // Masterfile

@@ -10,6 +10,8 @@ import { Link, useForm } from '@inertiajs/vue3';
 import { ref, computed, watch, onMounted } from 'vue';
 
 const props = defineProps<{
+    // False until this campus has its own admin (requests would have no one to approve them).
+    borrowingOpen?: boolean;
     campuses: Array<{
         id: number;
         campus_name: string;
@@ -270,6 +272,10 @@ const submit = () => {
                 Item added to your request.
             </div>
         </transition>
+
+        <div v-if="props.borrowingOpen === false" class="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+            Borrowing is not yet available at your campus. It opens once your campus has its own laboratory admin.
+        </div>
 
         <form @submit.prevent="submit" class="space-y-6">
             <Card title="Borrowing Details">

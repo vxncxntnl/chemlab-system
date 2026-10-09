@@ -10,6 +10,7 @@ use App\Models\BorrowingEquipment;
 use App\Models\DamageReport;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Support\CampusAccess;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Collection;
 
@@ -69,9 +70,10 @@ class NotificationService
             'info'
         );
 
-        // Notify all admins to verify the new faculty
-        self::notifyRole(
-            'admin',
+        // Notify the admin who approves this campus's faculty (its own
+        // admin, or the main campus admin while it has none).
+        self::notifyAdminsOf(
+            $user->campus_id,
             'New Faculty Registration — Please Verify',
             "{$user->name} ({$user->email}) has registered as a faculty member under the {$user->department} department at {$user->campus?->campus_name}. Please verify this account in Users management.",
             'info',
@@ -101,11 +103,29 @@ class NotificationService
 
     // ─── Borrowing Notifications ──────────────────────────────────────────────
 
-    private static function notifyRole(string $role, string $title, string $message, string $type, string $link): void
+    /** The admin handling a campus (its own, else the main campus admin). */
+    private static function notifyAdminsOf(?int $campusId, string $title, string $message, string $type, string $link, bool $email = true): void
     {
-        User::where('role', $role)->where('status', 'active')->each(function (User $user) use ($title, $message, $type, $link) {
-            self::sendWithEmail($user, $title, $message, $type, $link);
-        });
+        foreach (CampusAccess::adminsFor($campusId) as $admin) {
+            $email ? self::sendWithEmail($admin, $title, $message, $type, $link) : self::send($admin, $title, $message, $type, $link);
+        }
+    }
+
+    /** Lab staff of one campus only. */
+    private static function notifyLabStaffOf(?int $campusId, string $title, string $message, string $type, string $link): void
+    {
+        if (!$campusId) {
+            return;
+        }
+        User::where('role', 'lab_staff')->where('status', 'active')->where('campus_id', $campusId)
+            ->each(fn (User $user) => self::sendWithEmail($user, $title, $message, $type, $link));
+    }
+
+    /** The campus a borrowing's equipment comes from. */
+    private static function campusOf(Borrowing $borrowing): ?int
+    {
+        return $borrowing->borrowingEquipment()->with('inventory:id,campus_id')->first()?->inventory?->campus_id
+            ?? $borrowing->user?->campus_id;
     }
 
     private static function borrowingLink(Borrowing $borrowing): string
@@ -150,13 +170,14 @@ class NotificationService
     {
         // The request now waits for the admin, so tell them — in-app only:
         // a whole class scanning the QR shouldn't flood their inbox.
-        User::where('role', 'admin')->where('status', 'active')->each(fn (User $admin) => self::send(
-            $admin,
+        self::notifyAdminsOf(
+            self::campusOf($borrowing),
             self::QR_REQUEST_TITLE,
             "{$borrowing->user->name} requested equipment for the activity \"{$activity->title}\" by scanning its QR code (request #{$borrowing->id}).",
             'info',
-            "/admin/borrowings/{$borrowing->id}"
-        ));
+            "/admin/borrowings/{$borrowing->id}",
+            email: false
+        );
 
         if (!$borrowing->faculty) {
             return;
@@ -188,9 +209,9 @@ class NotificationService
             self::borrowingLink($borrowing)
         );
 
-        // Notify all admins
-        self::notifyRole(
-            'admin',
+        // Notify the campus's admin
+        self::notifyAdminsOf(
+            self::campusOf($borrowing),
             'New Borrow Request Awaiting Admin Approval',
             "Borrow request #{$borrowing->id} from {$user->name} has been approved by faculty ({$approver->name}) and is now waiting for your review.",
             'info',
@@ -229,8 +250,8 @@ class NotificationService
         );
 
         // Notify lab staff to prepare for release
-        self::notifyRole(
-            'lab_staff',
+        self::notifyLabStaffOf(
+            self::campusOf($borrowing),
             'Borrow Request Approved — Ready for Equipment Release',
             "Borrow request #{$borrowing->id} from {$user->name} has been fully approved by admin ({$approver->name}). Please prepare the equipment for release.",
             'success',
@@ -325,9 +346,9 @@ class NotificationService
     {
         $campusId = $item->inventory?->campus_id;
         $labStaff = User::where('role', 'lab_staff')->where('status', 'active')
-            ->when($campusId, fn ($q) => $q->where('campus_id', $campusId))
+            ->where('campus_id', $campusId)
             ->get();
-        $admins = User::where('role', 'admin')->where('status', 'active')->get();
+        $admins = CampusAccess::adminsFor($campusId);
         $recipients = $labStaff->merge($admins)->unique('id');
 
         $equipment = $item->equipment?->name ?? 'an item';
@@ -433,7 +454,7 @@ class NotificationService
         $days = DamageReport::REOPEN_DAYS;
         $reason = rtrim((string) $report->rejection_reason, '. ');
 
-        User::where('role', 'admin')->where('status', 'active')->each(fn (User $admin) => self::sendWithEmail(
+        CampusAccess::adminsFor($labStaff->campus_id)->each(fn (User $admin) => self::sendWithEmail(
             $admin,
             'Damage Report Rejected by Lab Staff',
             "Lab staff {$labStaff->name} rejected Damage Report #{$report->id} ({$equipment}, borrowing #{$report->borrowing_id}) — reason: {$reason}. You can reopen it within {$days} days if you disagree.",

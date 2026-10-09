@@ -14,7 +14,10 @@ class ReservationController extends Controller
 {
     public function index()
     {
+        // Reservations by the users this admin manages.
+        $visible = \App\Support\CampusAccess::users(\App\Models\User::withTrashed(), auth()->user())->select('id');
         $reservations = Reservation::with(['user', 'equipment', 'approver'])
+            ->whereIn('user_id', $visible)
             ->latest()
             ->paginate(15);
 
