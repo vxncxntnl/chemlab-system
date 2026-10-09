@@ -42,8 +42,8 @@ class ReportController extends Controller
     {
         $year = $request->input('year', date('Y'));
 
-        // PostgreSQL (hosted) uses EXTRACT(); SQLite (offline demo database
-        // and tests) has no EXTRACT/::int and uses strftime() instead. Also
+        // PostgreSQL (hosted) uses EXTRACT(); SQLite (used by
+        // tests) has no EXTRACT/::int and uses strftime() instead. Also
         // note: PostgreSQL treats double-quoted text as a column/identifier
         // name, not a string literal, so the status comparisons below must
         // use single quotes.
