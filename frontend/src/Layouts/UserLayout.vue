@@ -84,6 +84,7 @@ const currentSection = computed(() => navigation.value.find(item => isActive(ite
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-white leading-tight break-words">{{ user.name }}</p>
                             <p class="text-xs text-green-300 capitalize">{{ user.role }}</p>
+                            <p v-if="user.role === 'student' && user.course" class="text-xs text-green-300/80 leading-tight break-words">{{ user.course }}</p>
                         </div>
                     </div>
                 </div>

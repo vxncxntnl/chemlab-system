@@ -6,6 +6,7 @@ export interface User {
     role: 'admin' | 'faculty' | 'student' | 'lab_staff';
     department?: string;
     student_id?: string;
+    course?: string | null;
     employee_id?: string;
     contact_number?: string;
     campus_id?: number;

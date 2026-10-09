@@ -6,6 +6,10 @@ type Faculty = { id: number; name: string; email: string; department: string | n
 const props = defineProps<{
     faculties: Faculty[];
     modelValue: string | number;
+    // The student's own course (e.g. "Civil Engineering"). When faculty of
+    // that department exist, it's used as the department automatically and
+    // the department dropdown is skipped.
+    department?: string | null;
 }>();
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
@@ -28,6 +32,18 @@ const search = ref('');
 const initialFaculty = props.faculties.find(f => String(f.id) === String(props.modelValue));
 if (initialFaculty?.department) {
     selectedDepartment.value = generalDepartment(initialFaculty.department);
+}
+
+// The student's course is already known — if it matches a department with
+// faculty, use it and don't ask. Otherwise (no faculty for that course yet)
+// fall back to choosing a department as before.
+const ownDepartment = computed(() =>
+    props.department && departments.value.includes(generalDepartment(props.department))
+        ? generalDepartment(props.department)
+        : ''
+);
+if (ownDepartment.value && !initialFaculty) {
+    selectedDepartment.value = ownDepartment.value;
 }
 
 // Start collapsed if a faculty is already picked (e.g. preselected from a
@@ -73,7 +89,11 @@ const changeSelection = () => {
 
 <template>
     <div class="space-y-2">
+        <p v-if="ownDepartment && selectedDepartment === ownDepartment" class="text-xs text-gray-500">
+            Showing faculty from your course: <span class="font-medium text-gray-700">{{ ownDepartment }}</span>
+        </p>
         <select
+            v-else
             v-model="selectedDepartment"
             class="block w-full rounded-lg border-gray-200 shadow-sm focus:border-green-500 focus:ring-green-500"
         >

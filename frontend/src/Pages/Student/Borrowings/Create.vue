@@ -348,6 +348,7 @@ const submit = () => {
                             v-else
                             v-model="form.faculty_id"
                             :faculties="faculties"
+                            :department="$page.props.auth.user.course"
                         />
                         <InputError :message="form.errors.faculty_id" class="mt-2" />
                     </div>
