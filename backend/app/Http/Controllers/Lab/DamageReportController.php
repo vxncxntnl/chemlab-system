@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DamageReport;
 use App\Models\AuditLog;
 use App\Models\EquipmentInventory;
+use App\Services\DamageReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -57,11 +58,25 @@ class DamageReportController extends Controller
     {
         $this->abortUnlessOwnCampus($damageReport);
 
-        $damageReport->load(['borrowing.user', 'borrowing.faculty', 'equipment', 'reporter']);
+        $damageReport->load(['borrowing.user', 'borrowing.faculty', 'equipment', 'reporter', 'rejecter:id,name,role']);
 
         return Inertia::render('Lab/DamageReports/Show', [
             'report' => $damageReport,
+            'history' => app(DamageReportService::class)->history($damageReport),
+            'rejectReasons' => DamageReport::REJECT_REASONS,
+            'reopenDays' => DamageReport::REOPEN_DAYS,
         ]);
+    }
+
+    public function reject(Request $request, DamageReport $damageReport)
+    {
+        $this->abortUnlessOwnCampus($damageReport);
+
+        $reason = DamageReport::rejectionReasonFrom($request);
+
+        app(DamageReportService::class)->reject($damageReport, $reason, auth()->user());
+
+        return back()->with('success', 'Damage report rejected — no replacement required. The admin has been notified.');
     }
 
     public function assess(Request $request, DamageReport $damageReport)
@@ -71,6 +86,11 @@ class DamageReportController extends Controller
         // mimes: checks the file's actual content (magic bytes), not the
         // extension or the browser-supplied Content-Type — a renamed
         // .php/.html/.js file fails this regardless of its filename.
+        // A rejected report comes back only through an admin's Reopen.
+        if ($damageReport->status === 'rejected') {
+            return back()->with('error', 'This report was rejected. Only an admin can reopen it.');
+        }
+
         $validated = $request->validate([
             'photo' => 'nullable|mimes:jpg,jpeg,png,webp|max:10240',
         ]);
@@ -98,6 +118,11 @@ class DamageReportController extends Controller
     public function resolve(DamageReport $damageReport)
     {
         $this->abortUnlessOwnCampus($damageReport);
+
+        // Rejecting already put its units back in stock.
+        if ($damageReport->status === 'rejected') {
+            return back()->with('error', 'This report was rejected. Only an admin can reopen it.');
+        }
 
         DB::transaction(function () use ($damageReport) {
             // Only restock once — skip if this report was already resolved before.

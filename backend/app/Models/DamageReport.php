@@ -23,14 +23,71 @@ class DamageReport extends Model
         'status',
         'date_reported',
         'resolved_date',
+        'rejection_reason',
+        'rejected_by',
+        'rejected_at',
+        'status_before_rejection',
+        'rejection_restocked_qty',
     ];
+
+    /** An admin can reopen a rejected report for this many days. */
+    public const REOPEN_DAYS = 7;
+
+    /** Quick-pick reasons for rejecting a report ("Other" needs details). */
+    public const REJECT_REASONS = [
+        'No damage found after inspection',
+        'Dirty or stained only — cleaned, works normally',
+        'Filed by mistake (wrong item or borrowing)',
+        'Duplicate report',
+        'Damage existed before this borrowing',
+        'Other',
+    ];
+
+    /**
+     * Validates the reject form and returns the reason to store, e.g.
+     * "No damage found after inspection — checked twice, no crack".
+     */
+    public static function rejectionReasonFrom(\Illuminate\Http\Request $request): string
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', \Illuminate\Validation\Rule::in(self::REJECT_REASONS)],
+            'details' => 'nullable|string|max:500|required_if:reason,Other',
+        ], [
+            'details.required_if' => 'Please describe the reason.',
+        ]);
+
+        $details = trim((string) ($validated['details'] ?? ''));
+        if ($validated['reason'] === 'Other') {
+            return $details;
+        }
+
+        return $details !== '' ? "{$validated['reason']} — {$details}" : $validated['reason'];
+    }
 
     protected function casts(): array
     {
         return [
             'date_reported' => 'datetime',
             'resolved_date' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
+    }
+
+    public function rejecter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by')->withTrashed();
+    }
+
+    public function canBeRejected(): bool
+    {
+        return in_array($this->status, ['pending', 'assessed'], true);
+    }
+
+    public function canBeReopened(): bool
+    {
+        return $this->status === 'rejected'
+            && $this->rejected_at
+            && $this->rejected_at->gt(now()->subDays(self::REOPEN_DAYS));
     }
 
     public function borrowing(): BelongsTo

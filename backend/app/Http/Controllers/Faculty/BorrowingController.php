@@ -241,8 +241,10 @@ class BorrowingController extends Controller
             return back()->withErrors(['equipment_id' => 'That equipment is not part of this borrowing.']);
         }
 
+        // A rejected report (no damage found) doesn't count.
         $alreadyReported = (int) DamageReport::where('borrowing_id', $borrowing->id)
             ->where('equipment_id', $validated['equipment_id'])
+            ->where('status', '!=', 'rejected')
             ->sum('quantity');
         $remaining = $item->quantity - $alreadyReported;
         if ($validated['quantity'] > $remaining) {

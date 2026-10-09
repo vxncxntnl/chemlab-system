@@ -490,8 +490,10 @@ class BorrowingService
             throw ValidationException::withMessages(['borrowing_equipment_id' => 'That equipment is not part of this borrowing.']);
         }
 
+        // A rejected report (no damage found) doesn't count.
         $alreadyReported = (int) DamageReport::where('borrowing_id', $borrowing->id)
             ->where('equipment_inventory_id', $item->inventory_id)
+            ->where('status', '!=', 'rejected')
             ->sum('quantity');
         $remaining = $item->quantity - $alreadyReported;
         if ($remaining <= 0) {
@@ -648,8 +650,11 @@ class BorrowingService
                     // Lab staff may already have recorded this item's damage
                     // while it was still borrowed (after the student reported
                     // it) — update that report instead of filing a duplicate.
+                    // (A rejected report is closed — damage found now gets a
+                    // new report instead.)
                     $existing = DamageReport::where('borrowing_id', $borrowing->id)
                         ->where('equipment_inventory_id', $item->inventory_id)
+                        ->where('status', '!=', 'rejected')
                         ->first();
                     if ($existing) {
                         $existing->update(array_filter([

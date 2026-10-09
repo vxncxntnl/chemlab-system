@@ -135,6 +135,7 @@ Route::middleware(['auth', 'role:lab_staff', 'throttle:300,1'])->prefix('lab')->
     Route::get('/damage-reports/{damageReport}/photo', [LabDamageReportController::class, 'photo'])->name('damage-reports.photo');
     Route::post('/damage-reports/{damageReport}/assess', [LabDamageReportController::class, 'assess'])->name('damage-reports.assess');
     Route::post('/damage-reports/{damageReport}/resolve', [LabDamageReportController::class, 'resolve'])->name('damage-reports.resolve');
+    Route::post('/damage-reports/{damageReport}/reject', [LabDamageReportController::class, 'reject'])->name('damage-reports.reject');
 
     // Maintenance logs – create and view only
     Route::get('/maintenance', [LabMaintenanceController::class, 'index'])->name('maintenance.index');
@@ -200,6 +201,8 @@ Route::middleware(['auth', 'role:admin', 'throttle:300,1'])->prefix('admin')->na
     Route::get('/damage-reports/{damageReport}/photo', [DamageReportController::class, 'photo'])->name('damage-reports.photo');
     Route::post('/damage-reports/{damageReport}/assess', [DamageReportController::class, 'assess'])->name('damage-reports.assess');
     Route::post('/damage-reports/{damageReport}/resolve', [DamageReportController::class, 'resolve'])->name('damage-reports.resolve');
+    Route::post('/damage-reports/{damageReport}/reject', [DamageReportController::class, 'reject'])->name('damage-reports.reject');
+    Route::post('/damage-reports/{damageReport}/reopen', [DamageReportController::class, 'reopen'])->name('damage-reports.reopen');
 
     // Reports
     Route::get('/reports/low-stock', [ReportController::class, 'lowStock'])->name('reports.low-stock');

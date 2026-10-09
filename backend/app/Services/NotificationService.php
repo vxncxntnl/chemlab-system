@@ -423,6 +423,25 @@ class NotificationService
         }
     }
 
+    /**
+     * Lab staff (possibly a student assistant) rejected a damage report —
+     * the admins are told so they can reopen it if they disagree.
+     */
+    public static function damageReportRejectedByLabStaff(DamageReport $report, User $labStaff): void
+    {
+        $equipment = $report->equipment?->name ?? 'the item';
+        $days = DamageReport::REOPEN_DAYS;
+        $reason = rtrim((string) $report->rejection_reason, '. ');
+
+        User::where('role', 'admin')->where('status', 'active')->each(fn (User $admin) => self::sendWithEmail(
+            $admin,
+            'Damage Report Rejected by Lab Staff',
+            "Lab staff {$labStaff->name} rejected Damage Report #{$report->id} ({$equipment}, borrowing #{$report->borrowing_id}) — reason: {$reason}. You can reopen it within {$days} days if you disagree.",
+            'warning',
+            "/admin/damage-reports/{$report->id}"
+        ));
+    }
+
     public static function damageReported(Borrowing $borrowing): void
     {
         $user = $borrowing->user;

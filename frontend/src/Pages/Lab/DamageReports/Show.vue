@@ -8,18 +8,26 @@ import BackButton from '@/Components/BackButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import DamageReportRejectForm from '@/Components/DamageReportRejectForm.vue';
+import DamageReportDecisions from '@/Components/DamageReportDecisions.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps<{
     report: any;
+    history: any[];
+    rejectReasons: string[];
+    reopenDays: number;
 }>();
+
+const showRejectForm = ref(false);
 
 const getStatusBadge = (status: string) => {
     const variants: Record<string, any> = {
         pending: 'warning',
         assessed: 'primary',
         resolved: 'success',
+        rejected: 'danger',
     };
     return variants[status] || 'default';
 };
@@ -138,7 +146,7 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
             <Card title="Actions">
                 <div class="flex flex-wrap gap-3">
                     <button
-                        v-if="report.status === 'pending' && !showAssessForm"
+                        v-if="report.status === 'pending' && !showAssessForm && !showRejectForm"
                         @click="showAssessForm = true"
                         class="inline-flex items-center px-4 py-2 rounded-lg bg-green-600 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
                     >
@@ -150,6 +158,13 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         class="inline-flex items-center px-4 py-2 rounded-lg bg-green-600 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
                     >
                         Mark as Resolved
+                    </button>
+                    <button
+                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm && !showAssessForm"
+                        @click="showRejectForm = true"
+                        class="inline-flex items-center px-4 py-2 rounded-lg border border-red-300 bg-white text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50 transition-colors"
+                    >
+                        Reject Report
                     </button>
                     <Link :href="route('lab.damage-reports.print', report.id)" target="_blank"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors">
@@ -181,7 +196,17 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         <PrimaryButton :disabled="assessForm.processing">Confirm Assessment</PrimaryButton>
                     </div>
                 </form>
+
+                <DamageReportRejectForm
+                    v-if="showRejectForm"
+                    :action="route('lab.damage-reports.reject', report.id)"
+                    :reasons="rejectReasons"
+                    :note="`The admin will be notified and can reopen it within ${reopenDays} days.`"
+                    @cancel="showRejectForm = false"
+                />
             </Card>
+
+            <DamageReportDecisions :report="report" :history="history" />
         </div>
         <ConfirmModal :show="showResolveModal" title="Resolve Report" message="Mark this damage report as resolved?" confirmLabel="Yes, Resolve" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doResolve" @cancelled="showResolveModal = false" />
     </LabLayout>

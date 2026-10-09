@@ -35,6 +35,7 @@ const getStatusBadge = (status: string) => {
         pending: 'warning',
         assessed: 'primary',
         resolved: 'success',
+        rejected: 'danger',
     };
     return variants[status] || 'default';
 };
@@ -62,6 +63,7 @@ const applyFilters = () => {
                 <option value="pending">Pending</option>
                 <option value="assessed">Assessed</option>
                 <option value="resolved">Resolved</option>
+                <option value="rejected">Rejected</option>
             </select>
         </div>
 

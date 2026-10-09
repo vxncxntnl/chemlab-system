@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\DamageReport;
 use App\Models\AuditLog;
 use App\Models\EquipmentInventory;
+use App\Services\DamageReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class DamageReportController extends Controller
@@ -31,15 +33,45 @@ class DamageReportController extends Controller
 
     public function show(DamageReport $damageReport)
     {
-        $damageReport->load(['borrowing.user', 'borrowing.faculty', 'equipment', 'reporter']);
+        $damageReport->load(['borrowing.user', 'borrowing.faculty', 'equipment', 'reporter', 'rejecter:id,name,role']);
 
         return Inertia::render('Admin/DamageReports/Show', [
             'report' => $damageReport,
+            'history' => app(DamageReportService::class)->history($damageReport),
+            'rejectReasons' => DamageReport::REJECT_REASONS,
+            'canReopen' => $damageReport->canBeReopened(),
+            'reopenDays' => DamageReport::REOPEN_DAYS,
         ]);
+    }
+
+    public function reject(Request $request, DamageReport $damageReport)
+    {
+        $reason = DamageReport::rejectionReasonFrom($request);
+
+        app(DamageReportService::class)->reject($damageReport, $reason, auth()->user());
+
+        return back()->with('success', 'Damage report rejected — no replacement required.');
+    }
+
+    public function reopen(DamageReport $damageReport)
+    {
+        try {
+            app(DamageReportService::class)->reopen($damageReport, auth()->user());
+        } catch (ValidationException $e) {
+            return back()->with('error', collect($e->errors())->flatten()->first());
+        }
+
+        return back()->with('success', 'Damage report reopened.');
     }
 
     public function assess(Request $request, DamageReport $damageReport)
     {
+        // A rejected report comes back only through Reopen (which also
+        // takes back the stock the rejection returned).
+        if ($damageReport->status === 'rejected') {
+            return back()->with('error', 'This report was rejected. Reopen it first.');
+        }
+
         $damageReport->update(['status' => 'assessed']);
 
         AuditLog::log(auth()->id(), 'Assessed Damage Report', 'damage_reports', $damageReport->id);
@@ -49,6 +81,12 @@ class DamageReportController extends Controller
 
     public function resolve(DamageReport $damageReport)
     {
+        // Rejecting already put its units back in stock — resolving it too
+        // would add them a second time.
+        if ($damageReport->status === 'rejected') {
+            return back()->with('error', 'This report was rejected. Reopen it first.');
+        }
+
         DB::transaction(function () use ($damageReport) {
             // Only restock once — skip if this report was already resolved before.
             if ($damageReport->status !== 'resolved' && $damageReport->quantity && $damageReport->equipment_inventory_id) {

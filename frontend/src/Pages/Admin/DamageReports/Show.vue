@@ -5,6 +5,8 @@ import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import BackButton from '@/Components/BackButton.vue';
+import DamageReportRejectForm from '@/Components/DamageReportRejectForm.vue';
+import DamageReportDecisions from '@/Components/DamageReportDecisions.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -40,19 +42,27 @@ const props = defineProps<{
             name: string;
         };
     };
+    history: any[];
+    rejectReasons: string[];
+    canReopen: boolean;
+    reopenDays: number;
 }>();
 
 const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'warning' | 'primary' | 'success'> = {
+    const variants: Record<string, 'warning' | 'primary' | 'success' | 'danger'> = {
         pending: 'warning',
         assessed: 'primary',
         resolved: 'success',
+        rejected: 'danger',
     };
     return variants[status] || 'default';
 };
 
 const showAssessModal = ref(false);
 const showResolveModal = ref(false);
+const showRejectForm = ref(false);
+const showReopenModal = ref(false);
+const doReopen = () => { router.post(route('admin.damage-reports.reopen', props.report.id), {}, { preserveScroll: true }); showReopenModal.value = false; };
 const doAssess = () => { router.post(route('admin.damage-reports.assess', props.report.id)); showAssessModal.value = false; };
 const doResolve = () => { router.post(route('admin.damage-reports.resolve', props.report.id)); showResolveModal.value = false; };
 </script>
@@ -156,6 +166,20 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                     >
                         Mark as Resolved
                     </button>
+                    <button
+                        v-if="['pending', 'assessed'].includes(report.status) && !showRejectForm"
+                        @click="showRejectForm = true"
+                        class="inline-flex items-center px-4 py-2 rounded-lg border border-red-300 bg-white text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50 transition-colors"
+                    >
+                        Reject Report
+                    </button>
+                    <button
+                        v-if="canReopen"
+                        @click="showReopenModal = true"
+                        class="inline-flex items-center px-4 py-2 rounded-lg bg-yellow-500 text-sm font-semibold text-white shadow-sm hover:bg-yellow-600 transition-colors"
+                    >
+                        Reopen Report
+                    </button>
                     <Link :href="route('admin.damage-reports.print', report.id)" target="_blank"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -164,9 +188,22 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                         Print Incident Report
                     </Link>
                 </div>
+                <p v-if="report.status === 'rejected' && !canReopen" class="mt-3 text-xs text-gray-500">
+                    The {{ reopenDays }}-day reopen period for this rejection has passed.
+                </p>
+
+                <DamageReportRejectForm
+                    v-if="showRejectForm"
+                    :action="route('admin.damage-reports.reject', report.id)"
+                    :reasons="rejectReasons"
+                    @cancel="showRejectForm = false"
+                />
             </Card>
+
+            <DamageReportDecisions :report="report" :history="history" />
         </div>
         <ConfirmModal :show="showAssessModal" title="Assess Damage" message="Mark this damage report as assessed?" confirmLabel="Yes, Assess" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doAssess" @cancelled="showAssessModal = false" />
         <ConfirmModal :show="showResolveModal" title="Resolve Report" message="Mark this damage report as resolved?" confirmLabel="Yes, Resolve" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doResolve" @cancelled="showResolveModal = false" />
+        <ConfirmModal :show="showReopenModal" title="Reopen Report" message="Reopen this rejected damage report? It goes back to its previous status, and any units the rejection returned to stock are taken back out." confirmLabel="Yes, Reopen" confirmClass="bg-yellow-500 hover:bg-yellow-600" @confirmed="doReopen" @cancelled="showReopenModal = false" />
     </AdminLayout>
 </template>
