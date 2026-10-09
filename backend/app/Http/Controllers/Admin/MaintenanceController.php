@@ -24,7 +24,9 @@ class MaintenanceController extends Controller
 
     public function create()
     {
-        $equipment = Equipment::select('id', 'name', 'serial_number')->get();
+        // A–Z, ignoring upper/lower case (names mix "BURETTE" and "Bunsen Burner").
+        $equipment = Equipment::select('id', 'name', 'serial_number')->get()
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
 
         return Inertia::render('Admin/Maintenance/Create', [
             'equipment' => $equipment,
@@ -71,7 +73,9 @@ class MaintenanceController extends Controller
 
     public function edit(MaintenanceLog $maintenance)
     {
-        $equipment = Equipment::select('id', 'name', 'serial_number')->get();
+        // A–Z, ignoring upper/lower case (names mix "BURETTE" and "Bunsen Burner").
+        $equipment = Equipment::select('id', 'name', 'serial_number')->get()
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
 
         return Inertia::render('Admin/Maintenance/Edit', [
             'maintenance' => $maintenance,

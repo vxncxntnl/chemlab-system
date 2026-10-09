@@ -42,6 +42,8 @@ class MaintenanceController extends Controller
                 'name' => $inv->equipment->name . ' (' . $inv->location?->location_name . ')',
             ])
             ->unique('id')
+            // A–Z, ignoring upper/lower case.
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
             ->values();
 
         return Inertia::render('Lab/Maintenance/Create', [
