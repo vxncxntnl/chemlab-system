@@ -118,6 +118,30 @@ class DamageReportService
         });
     }
 
+    /**
+     * Borrower's and Faculty In-Charge's affiliation for the report details
+     * (admin and lab staff pages alike): email, campus, and course (student)
+     * or department (faculty) — each read from that person's own role field,
+     * so a leftover value in the other field is never shown. Missing values
+     * are null; the page shows "Not provided".
+     */
+    public static function affiliations(DamageReport $report): array
+    {
+        $report->loadMissing(['borrowing.user.campus:id,campus_name', 'borrowing.faculty.campus:id,campus_name']);
+
+        $of = fn (?User $user) => $user ? [
+            'email' => $user->email ?: null,
+            'campus' => $user->campus?->campus_name,
+            'department_label' => $user->role === 'faculty' ? 'Department' : 'Course',
+            'department' => User::departmentOf($user),
+        ] : null;
+
+        return [
+            'borrower' => $of($report->borrowing?->user),
+            'faculty' => $of($report->borrowing?->faculty),
+        ];
+    }
+
     /** Labels for the fields an edit can change (also used in the history). */
     public const EDITABLE = [
         'description' => 'Description',

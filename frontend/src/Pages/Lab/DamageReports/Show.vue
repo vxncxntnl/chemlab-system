@@ -11,12 +11,15 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import DamageReportRejectForm from '@/Components/DamageReportRejectForm.vue';
 import DamageReportEditForm from '@/Components/DamageReportEditForm.vue';
 import DamageReportDecisions from '@/Components/DamageReportDecisions.vue';
+import DamageReportAffiliations from '@/Components/DamageReportAffiliations.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps<{
     report: any;
     history: any[];
+    // Borrower's and faculty's email, campus, course/department.
+    affiliations: any;
     rejectReasons: string[];
     reopenDays: number;
 }>();
@@ -101,6 +104,7 @@ const doResolve = () => { router.post(route('lab.damage-reports.resolve', props.
                         <dt class="text-sm font-medium text-gray-500">Faculty In-Charge</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ report.borrowing?.faculty?.name ?? '—' }}</dd>
                     </div>
+                    <DamageReportAffiliations :affiliations="affiliations" />
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Borrowing Period</dt>
                         <dd class="mt-1 text-sm text-gray-900">

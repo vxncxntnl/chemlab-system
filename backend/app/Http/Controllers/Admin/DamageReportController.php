@@ -40,6 +40,7 @@ class DamageReportController extends Controller
 
         return Inertia::render('Admin/DamageReports/Show', [
             'report' => $damageReport,
+            'affiliations' => DamageReportService::affiliations($damageReport),
             'history' => app(DamageReportService::class)->history($damageReport),
             'rejectReasons' => DamageReport::REJECT_REASONS,
             'canReopen' => $damageReport->canBeReopened(),

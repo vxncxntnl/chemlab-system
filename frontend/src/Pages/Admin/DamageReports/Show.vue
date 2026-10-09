@@ -8,6 +8,7 @@ import BackButton from '@/Components/BackButton.vue';
 import DamageReportRejectForm from '@/Components/DamageReportRejectForm.vue';
 import DamageReportEditForm from '@/Components/DamageReportEditForm.vue';
 import DamageReportDecisions from '@/Components/DamageReportDecisions.vue';
+import DamageReportAffiliations from '@/Components/DamageReportAffiliations.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -44,6 +45,8 @@ const props = defineProps<{
         };
     };
     history: any[];
+    // Borrower's and faculty's email, campus, course/department.
+    affiliations: any;
     rejectReasons: string[];
     canReopen: boolean;
     reopenDays: number;
@@ -101,7 +104,6 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                                 {{ report.borrowing.user.name }}
                             </Link>
                         </dd>
-                        <dd class="text-xs text-gray-500">{{ report.borrowing?.user?.email }}</dd>
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Faculty In-Charge</dt>
@@ -112,6 +114,7 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                             <span v-else>—</span>
                         </dd>
                     </div>
+                    <DamageReportAffiliations :affiliations="affiliations" />
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Borrowing Period</dt>
                         <dd class="mt-1 text-sm text-gray-900">
