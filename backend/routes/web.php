@@ -200,6 +200,9 @@ Route::middleware(['auth', 'role:admin', 'admin.campus', 'throttle:300,1'])->pre
     Route::get('/damage-reports', [DamageReportController::class, 'index'])->name('damage-reports.index');
     // Registered before {damageReport} so "history" is not read as a report ID.
     Route::get('/damage-reports/history', [DamageReportController::class, 'history'])->name('damage-reports.history');
+    // Damage history per student / faculty member
+    Route::get('/damage-reports/people', [DamageReportController::class, 'people'])->name('damage-reports.people');
+    Route::get('/damage-reports/people/{user}', [DamageReportController::class, 'person'])->name('damage-reports.person');
     Route::get('/damage-reports/{damageReport}', [DamageReportController::class, 'show'])->name('damage-reports.show');
     Route::get('/damage-reports/{damageReport}/print', [DamageReportController::class, 'print'])->name('damage-reports.print');
     Route::get('/damage-reports/{damageReport}/photo', [DamageReportController::class, 'photo'])->name('damage-reports.photo');

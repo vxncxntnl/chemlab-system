@@ -96,12 +96,21 @@ const doResolve = () => { router.post(route('admin.damage-reports.resolve', prop
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Borrower</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ report.borrowing?.user?.name }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            <Link v-if="report.borrowing?.user" :href="route('admin.damage-reports.person', report.borrowing.user.id)" class="text-green-700 hover:text-green-900" title="Damage history">
+                                {{ report.borrowing.user.name }}
+                            </Link>
+                        </dd>
                         <dd class="text-xs text-gray-500">{{ report.borrowing?.user?.email }}</dd>
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Faculty In-Charge</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ (report.borrowing as any)?.faculty?.name ?? '—' }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            <Link v-if="(report.borrowing as any)?.faculty" :href="route('admin.damage-reports.person', (report.borrowing as any).faculty.id)" class="text-green-700 hover:text-green-900" title="Damage history">
+                                {{ (report.borrowing as any).faculty.name }}
+                            </Link>
+                            <span v-else>—</span>
+                        </dd>
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Borrowing Period</dt>

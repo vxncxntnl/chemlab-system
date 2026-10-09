@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DamageReport;
 use App\Models\AuditLog;
 use App\Models\EquipmentInventory;
+use App\Models\User;
 use App\Services\DamageReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,6 +87,117 @@ class DamageReportController extends Controller
         return Inertia::render('Admin/DamageReports/History', [
             'entries' => $logs,
             'filters' => $request->only(['action']),
+        ]);
+    }
+
+    /** This campus's damage reports involving a person (as borrower or faculty in-charge). */
+    private function campusReports()
+    {
+        return \App\Support\CampusAccess::damageReports(DamageReport::query(), \App\Support\CampusAccess::adminCampusId(auth()->user()))
+            ->with(['equipment:id,name', 'borrowing:id,user_id,faculty_id']);
+    }
+
+    /** Department for faculty, course for students. */
+    private static function departmentOf(User $user): ?string
+    {
+        return $user->role === 'faculty' ? $user->department : $user->course;
+    }
+
+    /**
+     * Damage history by person: every student and faculty member with
+     * damage reports at this campus, with their department/course and
+     * counts (as borrower or faculty in-charge).
+     */
+    public function people(Request $request)
+    {
+        $reports = $this->campusReports()->get(['id', 'borrowing_id', 'equipment_id', 'status', 'created_at']);
+
+        // Each report counts for its borrower and its faculty in-charge.
+        $byPerson = [];
+        foreach ($reports as $report) {
+            foreach (array_unique(array_filter([$report->borrowing?->user_id, $report->borrowing?->faculty_id])) as $userId) {
+                $byPerson[$userId][] = $report;
+            }
+        }
+
+        $people = User::withTrashed()->whereIn('id', array_keys($byPerson))->whereIn('role', ['student', 'faculty'])->get()
+            ->map(function (User $user) use ($byPerson) {
+                $list = collect($byPerson[$user->id]);
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                    'department' => self::departmentOf($user),
+                    'id_number' => $user->student_id ?? $user->employee_id,
+                    'total' => $list->count(),
+                    'open' => $list->whereIn('status', ['pending', 'assessed'])->count(),
+                    'resolved' => $list->where('status', 'resolved')->count(),
+                    'rejected' => $list->where('status', 'rejected')->count(),
+                    'last_reported_at' => $list->max('created_at'),
+                ];
+            });
+
+        $departments = $people->pluck('department')->filter()->unique()->sort()->values();
+
+        $filtered = $people
+            ->when($request->role, fn ($c, $role) => $c->where('role', $role))
+            ->when($request->department, fn ($c, $dept) => $c->where('department', $dept))
+            ->when($request->search, fn ($c, $search) => $c->filter(fn ($p) => stripos($p['name'], $search) !== false || stripos((string) $p['id_number'], $search) !== false))
+            ->sortByDesc('total')
+            ->values();
+
+        return Inertia::render('Admin/DamageReports/People', [
+            'people' => $filtered,
+            'departments' => $departments,
+            'filters' => $request->only(['search', 'role', 'department']),
+        ]);
+    }
+
+    /** One student's or faculty member's damage reports at this campus. */
+    public function person(User $user)
+    {
+        abort_unless(in_array($user->role, ['student', 'faculty'], true), 404);
+
+        $reports = $this->campusReports()
+            ->with('borrowing.user:id,name', 'borrowing.faculty:id,name')
+            ->whereHas('borrowing', fn ($q) => $q->where('user_id', $user->id)->orWhere('faculty_id', $user->id))
+            ->latest()
+            ->get()
+            ->map(fn (DamageReport $r) => [
+                'id' => $r->id,
+                'equipment' => $r->equipment?->name,
+                'quantity' => $r->quantity,
+                'description' => $r->description,
+                'liable_party' => $r->liable_party,
+                'status' => $r->status,
+                'created_at' => $r->created_at,
+                'borrowing_id' => $r->borrowing_id,
+                'involvement' => $r->borrowing?->user_id === $user->id ? 'Borrower' : 'Faculty in-charge',
+                'borrower' => $r->borrowing?->user?->name,
+                'faculty' => $r->borrowing?->faculty?->name,
+            ]);
+
+        $user->load('campus:id,campus_name');
+
+        return Inertia::render('Admin/DamageReports/Person', [
+            'person' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'department' => self::departmentOf($user),
+                'id_number' => $user->student_id ?? $user->employee_id,
+                'campus' => $user->campus?->campus_name,
+            ],
+            'reports' => $reports,
+            'summary' => [
+                'total' => $reports->count(),
+                'open' => $reports->whereIn('status', ['pending', 'assessed'])->count(),
+                'resolved' => $reports->where('status', 'resolved')->count(),
+                'rejected' => $reports->where('status', 'rejected')->count(),
+                'units' => $reports->where('status', '!=', 'rejected')->sum('quantity'),
+            ],
         ]);
     }
 
