@@ -112,8 +112,12 @@ const doDelete = () => { router.delete(route('admin.equipment.destroy', deleteTa
             <template #cell-equipment_code="{ value }">
                 <span class="text-sm font-mono text-gray-600">{{ value }}</span>
             </template>
-            <template #cell-serial_number="{ value }">
-                <span :class="value ? 'text-gray-700' : 'text-gray-400 italic'">{{ value || 'N/A' }}</span>
+            <template #cell-serial_number="{ value, row }">
+                <!-- Serial-tracked items: each unit has its own serial (see View). -->
+                <Link v-if="row.tracks_units" :href="route('admin.equipment.show', row.id)" class="text-green-700 hover:text-green-900">
+                    {{ row.units_count }} unit(s) — view serials
+                </Link>
+                <span v-else :class="value ? 'text-gray-700' : 'text-gray-400 italic'">{{ value || 'N/A' }}</span>
             </template>
             <template #cell-name="{ row }">
                 <div class="flex items-center gap-3">

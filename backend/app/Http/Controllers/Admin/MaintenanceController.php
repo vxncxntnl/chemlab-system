@@ -16,7 +16,7 @@ class MaintenanceController extends Controller
 {
     public function index()
     {
-        $maintenanceLogs = CampusAccess::maintenance(MaintenanceLog::query(), CampusAccess::adminCampusId(auth()->user()))->with(['equipment', 'performer'])
+        $maintenanceLogs = CampusAccess::maintenance(MaintenanceLog::query(), CampusAccess::adminCampusId(auth()->user()))->with(['equipment', 'performer', 'unit:id,unit_code,serial_number'])
             ->latest()
             ->paginate(15);
 
@@ -32,7 +32,8 @@ class MaintenanceController extends Controller
             ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
 
         return Inertia::render('Admin/Maintenance/Create', [
-            'equipment' => $equipment,
+            // Serial-tracked items list their units, so the exact one can be chosen.
+            'equipment' => \App\Support\MaintenanceUnits::withUnits($equipment, CampusAccess::adminCampusId(auth()->user())),
         ]);
     }
 
@@ -50,6 +51,7 @@ class MaintenanceController extends Controller
         ]);
 
         $validated['performed_by'] = auth()->id();
+        $validated['equipment_unit_id'] = \App\Support\MaintenanceUnits::validatedUnitId($request, CampusAccess::adminCampusId(auth()->user()));
         $validated['campus_id'] = CampusAccess::adminCampusId(auth()->user());
 
         $maintenance = MaintenanceLog::create($validated);
@@ -68,7 +70,7 @@ class MaintenanceController extends Controller
 
     public function show(MaintenanceLog $maintenance)
     {
-        $maintenance->load(['equipment', 'performer']);
+        $maintenance->load(['equipment', 'performer', 'unit']);
 
         return Inertia::render('Admin/Maintenance/Show', [
             'maintenance' => $maintenance,
@@ -83,7 +85,8 @@ class MaintenanceController extends Controller
 
         return Inertia::render('Admin/Maintenance/Edit', [
             'maintenance' => $maintenance,
-            'equipment' => $equipment,
+            // Serial-tracked items list their units, so the exact one can be chosen.
+            'equipment' => \App\Support\MaintenanceUnits::withUnits($equipment, CampusAccess::adminCampusId(auth()->user())),
         ]);
     }
 
@@ -100,6 +103,7 @@ class MaintenanceController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $validated['equipment_unit_id'] = \App\Support\MaintenanceUnits::validatedUnitId($request, CampusAccess::adminCampusId(auth()->user()));
         $maintenance->update($validated);
 
         AuditLog::log(auth()->id(), 'Updated Maintenance Log', 'maintenance_logs', $maintenance->id);

@@ -201,6 +201,7 @@ class CampusAccess
             $model instanceof UserNotification => $model->user_id === $admin->id
                 || self::users(User::withTrashed(), $admin)->whereKey($model->user_id)->exists(),
             $model instanceof StockAdjustment => (int) $model->inventory?->campus_id === $campusId,
+            $model instanceof \App\Models\EquipmentUnit => (int) $model->inventory?->campus_id === $campusId,
             // System-wide setup belongs to the main campus.
             $model instanceof Campus, $model instanceof Location => $main,
             default => $main,

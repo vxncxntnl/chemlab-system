@@ -36,7 +36,8 @@ const statusBadge: Record<string, string> = {
                 <div>
                     <p class="text-xs font-medium text-gray-500 uppercase">Equipment</p>
                     <p class="mt-1 text-sm font-semibold text-gray-900">{{ maintenance.equipment?.name }}</p>
-                    <p class="text-xs text-gray-400">{{ maintenance.equipment?.serial_number }}</p>
+                    <p v-if="maintenance.unit" class="text-xs text-gray-600">Unit <span class="font-mono">{{ maintenance.unit.unit_code }}</span> · S/N <span class="font-mono">{{ maintenance.unit.serial_number || 'not recorded' }}</span></p>
+                    <p v-else class="text-xs text-gray-400">{{ maintenance.equipment?.serial_number }}</p>
                 </div>
 
                 <div>

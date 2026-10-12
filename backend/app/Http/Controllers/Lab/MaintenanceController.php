@@ -17,7 +17,7 @@ class MaintenanceController extends Controller
         $campusId = auth()->user()->campus_id;
 
         // Only show maintenance logs for equipment at this lab staff's campus
-        $logs = \App\Support\CampusAccess::maintenance(MaintenanceLog::query(), (int) $campusId)->with(['equipment', 'performer'])
+        $logs = \App\Support\CampusAccess::maintenance(MaintenanceLog::query(), (int) $campusId)->with(['equipment', 'performer', 'unit:id,unit_code,serial_number'])
             ->latest()
             ->paginate(15);
 
@@ -44,7 +44,8 @@ class MaintenanceController extends Controller
             ->values();
 
         return Inertia::render('Lab/Maintenance/Create', [
-            'equipment' => $equipment,
+            // Serial-tracked items list their units, so the exact one can be chosen.
+            'equipment' => \App\Support\MaintenanceUnits::withUnits($equipment, (int) $campusId),
         ]);
     }
 
@@ -72,6 +73,7 @@ class MaintenanceController extends Controller
         ]);
 
         $validated['performed_by'] = auth()->id();
+        $validated['equipment_unit_id'] = \App\Support\MaintenanceUnits::validatedUnitId($request, (int) $campusId);
         $validated['campus_id'] = $campusId;
         $validated['cost'] = $validated['cost'] ?? 0;
 
@@ -98,7 +100,7 @@ class MaintenanceController extends Controller
             abort(403);
         }
 
-        $maintenance->load(['equipment', 'performer']);
+        $maintenance->load(['equipment', 'performer', 'unit']);
 
         return Inertia::render('Lab/Maintenance/Show', [
             'maintenance' => $maintenance,

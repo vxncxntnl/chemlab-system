@@ -18,6 +18,7 @@ const props = defineProps<{
         serial_number: string | null;
         condition: string;
         is_available: boolean;
+        tracks_units?: boolean;
         image_path: string | null;
         course_restriction: string | null;
         inventory: Array<{
@@ -50,6 +51,7 @@ const form = useForm({
     serial_number: props.equipment.serial_number || '',
     condition: props.equipment.condition,
     is_available: props.equipment.is_available,
+    tracks_units: !!props.equipment.tracks_units,
     course_restriction: props.equipment.course_restriction || '',
     image: null as File | null,
 });
@@ -163,6 +165,15 @@ const submit = () => {
                         <label for="is_available" class="ml-2 block text-sm text-gray-900">
                             Available for borrowing
                         </label>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <div class="flex items-center">
+                            <input id="tracks_units" v-model="form.tracks_units" type="checkbox"
+                                class="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" />
+                            <label for="tracks_units" class="ml-2 block text-sm text-gray-900">Track each unit by serial number</label>
+                        </div>
+                        <p class="ml-6 mt-1 text-xs text-gray-500">For instruments and electronics that get repaired or calibrated (e.g. microscope, pH meter, balance). Leave off for glassware and simple tools. Serial numbers are entered on the equipment's View page.</p>
                     </div>
 
                     <div>

@@ -4,6 +4,7 @@ import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
 import QrCode from '@/Components/QrCode.vue';
 import BackButton from '@/Components/BackButton.vue';
+import EquipmentUnits from '@/Components/EquipmentUnits.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -15,6 +16,7 @@ defineProps<{
         description: string | null;
         category: string | null;
         serial_number: string | null;
+        tracks_units?: boolean;
         condition: string;
         is_available: boolean;
         image_path: string | null;
@@ -52,6 +54,7 @@ defineProps<{
             };
         }>;
     };
+    units: Array<any>;
 }>();
 
 // Adjust Stock Modal
@@ -267,6 +270,10 @@ const printEquipment = () => {
                     </table>
                 </div>
             </Card>
+
+            <!-- Serial-tracked items: each unit, its serial number and maintenance status -->
+            <EquipmentUnits v-if="equipment.tracks_units" :equipment-id="equipment.id" :units="units"
+                :in-stock="equipment.inventory.reduce((n, i) => n + i.total_quantity, 0)" />
 
             <!-- Stock History -->
             <Card v-for="inv in equipment.inventory" :key="'history-' + inv.id"

@@ -4,12 +4,14 @@ import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import MaintenanceUnitPicker from '@/Components/MaintenanceUnitPicker.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 
 const props = defineProps<{
     maintenance: {
         id: number;
         equipment_id: number;
+        equipment_unit_id?: number | null;
         type: string;
         description: string;
         cost: number;
@@ -27,6 +29,7 @@ const props = defineProps<{
 
 const form = useForm({
     equipment_id: props.maintenance.equipment_id,
+    equipment_unit_id: (props.maintenance.equipment_unit_id ?? '') as number | string,
     type: props.maintenance.type,
     description: props.maintenance.description,
     cost: props.maintenance.cost || '',
@@ -63,6 +66,8 @@ const submit = () => {
                     </select>
                     <InputError :message="form.errors.equipment_id" class="mt-2" />
                 </div>
+
+                <MaintenanceUnitPicker :equipment="equipment" :equipment-id="form.equipment_id" v-model="form.equipment_unit_id" :error="form.errors.equipment_unit_id" />
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>

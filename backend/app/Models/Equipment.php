@@ -34,6 +34,7 @@ class Equipment extends Model
         'image_path',
         'condition',
         'is_available',
+        'tracks_units',
         'course_restriction',
     ];
 
@@ -41,12 +42,19 @@ class Equipment extends Model
     {
         return [
             'is_available' => 'boolean',
+            'tracks_units' => 'boolean',
         ];
     }
 
     public function categoryRelation(): BelongsTo
     {
         return $this->belongsTo(Category::class, 'category_id');
+    }
+
+    /** Each physical unit with its serial number (serial-tracked items only). */
+    public function units(): HasMany
+    {
+        return $this->hasMany(EquipmentUnit::class)->orderBy('unit_code');
     }
 
     public function inventory(): HasMany

@@ -3,16 +3,18 @@ import LabLayout from '@/Layouts/LabLayout.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import TextInput from '@/Components/TextInput.vue';
+import MaintenanceUnitPicker from '@/Components/MaintenanceUnitPicker.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import BackButton from '@/Components/BackButton.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 
 defineProps<{
-    equipment: Array<{ id: number; name: string }>;
+    equipment: Array<{ id: number; name: string; units?: Array<{ id: number; label: string; under_maintenance: boolean }> }>;
 }>();
 
 const form = useForm({
     equipment_id:          '',
+    equipment_unit_id:     '' as number | string,
     type:                  'routine',
     description:           '',
     cost:                  '',
@@ -54,6 +56,8 @@ const submit = () => {
                         </select>
                         <InputError :message="form.errors.equipment_id" class="mt-1" />
                     </div>
+
+                    <MaintenanceUnitPicker :equipment="equipment" :equipment-id="form.equipment_id" v-model="form.equipment_unit_id" :error="form.errors.equipment_unit_id" />
 
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <div>

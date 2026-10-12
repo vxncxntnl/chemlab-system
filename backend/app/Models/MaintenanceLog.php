@@ -9,6 +9,7 @@ class MaintenanceLog extends Model
 {
     protected $fillable = [
         'equipment_id',
+        'equipment_unit_id',
         'campus_id',
         'performed_by',
         'type',
@@ -28,6 +29,12 @@ class MaintenanceLog extends Model
 
     // Maintenance history must stay readable even after the equipment or
     // the staff member who performed the work is later soft-deleted.
+    /** The exact unit (serial number) being maintained, for serial-tracked items. */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(EquipmentUnit::class, 'equipment_unit_id');
+    }
+
     public function equipment(): BelongsTo
     {
         return $this->belongsTo(Equipment::class)->withTrashed();

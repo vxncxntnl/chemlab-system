@@ -56,7 +56,9 @@ const getStatusBadge = (status: string): BadgeVariant => {
                     <div>
                         <p class="text-sm text-gray-500">Equipment</p>
                         <p class="font-medium">{{ maintenance.equipment.name }}</p>
-                        <p class="text-sm text-gray-500">{{ maintenance.equipment.serial_number || 'No S/N' }}</p>
+                        <!-- The exact unit (serial-tracked items), else the item's serial -->
+                        <p v-if="(maintenance as any).unit" class="text-sm text-gray-600">Unit <span class="font-mono">{{ (maintenance as any).unit.unit_code }}</span> · S/N <span class="font-mono">{{ (maintenance as any).unit.serial_number || 'not recorded' }}</span></p>
+                        <p v-else class="text-sm text-gray-500">{{ maintenance.equipment.serial_number || 'No S/N' }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Type</p>

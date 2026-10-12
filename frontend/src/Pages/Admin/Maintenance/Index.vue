@@ -74,6 +74,7 @@ const doDelete = () => { router.delete(route('admin.maintenance.destroy', delete
         <DataTable :columns="columns" :data="maintenanceLogs.data" :pagination="maintenanceLogs">
             <template #cell-equipment.name="{ row }">
                 {{ row.equipment?.name || 'N/A' }}
+                <div v-if="row.unit" class="text-xs text-gray-500 font-mono">{{ row.unit.unit_code }}{{ row.unit.serial_number ? ` · S/N ${row.unit.serial_number}` : '' }}</div>
             </template>
             <template #cell-type="{ value }">
                 <Badge :variant="getTypeBadge(value)" class="capitalize">{{ value }}</Badge>

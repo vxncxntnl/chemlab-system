@@ -177,6 +177,10 @@ Route::middleware(['auth', 'role:admin', 'admin.campus', 'throttle:300,1'])->pre
     // Equipment
     Route::get('/equipment-report', [EquipmentController::class, 'report'])->name('equipment.report');
     Route::resource('equipment', EquipmentController::class);
+    // Serial numbers of each unit (serial-tracked equipment)
+    Route::post('/equipment/{equipment}/units', [\App\Http\Controllers\Admin\EquipmentUnitController::class, 'store'])->name('equipment.units.store');
+    Route::put('/equipment-units/{unit}', [\App\Http\Controllers\Admin\EquipmentUnitController::class, 'update'])->name('equipment.units.update');
+    Route::delete('/equipment-units/{unit}', [\App\Http\Controllers\Admin\EquipmentUnitController::class, 'destroy'])->name('equipment.units.destroy');
 
     // Inventory
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');

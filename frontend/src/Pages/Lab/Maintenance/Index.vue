@@ -64,7 +64,7 @@ const statusBadge: Record<string, string> = {
                         <td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm">No maintenance records yet.</td>
                     </tr>
                     <tr v-for="log in logs.data" :key="log.id" class="hover:bg-green-50/30 transition-colors duration-100">
-                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ log.equipment?.name }}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ log.equipment?.name }}<div v-if="log.unit" class="text-xs font-normal text-gray-500 font-mono">{{ log.unit.unit_code }}{{ log.unit.serial_number ? ` · S/N ${log.unit.serial_number}` : '' }}</div></td>
                         <td class="px-4 py-3">
                             <span :class="typeBadge[log.type] ?? 'bg-gray-100 text-gray-700'" class="px-2 py-0.5 rounded-full text-xs font-semibold capitalize">
                                 {{ log.type }}

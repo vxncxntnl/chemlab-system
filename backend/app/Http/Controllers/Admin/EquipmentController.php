@@ -22,7 +22,9 @@ class EquipmentController extends Controller
         $admin = auth()->user();
         $campusId = CampusAccess::adminCampusId($admin);
         $query = CampusAccess::equipment(Equipment::query(), $campusId, CampusAccess::isMainAdmin($admin))
-            ->with(['inventory' => fn ($q) => $q->where('campus_id', $campusId)->with('campus', 'location')]);
+            ->with(['inventory' => fn ($q) => $q->where('campus_id', $campusId)->with('campus', 'location')])
+            // Serial-tracked items: how many units this campus has.
+            ->withCount(['units' => fn ($q) => $q->whereHas('inventory', fn ($i) => $i->where('campus_id', $campusId))]);
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
@@ -174,6 +176,21 @@ class EquipmentController extends Controller
 
         return Inertia::render('Admin/Equipment/Show', [
             'equipment' => $equipment,
+            // Serial-tracked items: each unit at this campus, and whether it is under maintenance now.
+            'units' => $equipment->tracks_units
+                ? $equipment->units()->whereHas('inventory', $atCampus)->with('openMaintenance')->get()->map(fn (\App\Models\EquipmentUnit $u) => [
+                    'id' => $u->id,
+                    'unit_code' => $u->unit_code,
+                    'serial_number' => $u->serial_number,
+                    'notes' => $u->notes,
+                    'maintenance' => $u->openMaintenance ? [
+                        'id' => $u->openMaintenance->id,
+                        'type' => $u->openMaintenance->type,
+                        'status' => $u->openMaintenance->status,
+                        'maintenance_date' => $u->openMaintenance->maintenance_date,
+                    ] : null,
+                ])
+                : [],
         ]);
     }
 
@@ -198,6 +215,8 @@ class EquipmentController extends Controller
             'serial_number' => 'nullable|string|max:100|unique:equipment,serial_number,' . $equipment->id,
             'condition' => 'required|in:new,good,fair,poor,damaged',
             'is_available' => 'boolean',
+            // Track each unit by serial number (instruments, electronics).
+            'tracks_units' => 'boolean',
             'course_restriction' => 'nullable|string|max:500',
             // Explicit raster-only whitelist instead of the generic "image"
             // rule, which also accepts SVG — an XML format that can carry an
@@ -219,6 +238,8 @@ class EquipmentController extends Controller
         }
 
         $equipment->update($validated);
+        // Just switched to serial tracking: one unit per item in stock.
+        EquipmentUnitController::createMissingUnits($equipment);
 
         AuditLog::log(auth()->id(), 'Updated Equipment', 'equipment', $equipment->id);
 
