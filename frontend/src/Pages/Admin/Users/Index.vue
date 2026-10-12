@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@/utils/date';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
@@ -158,7 +159,7 @@ const doDelete = () => { router.delete(route('admin.users.destroy', actionTarget
             </template>
 
             <template #cell-created_at="{ value }">
-                {{ new Date(value).toLocaleDateString() }}
+                <span class="whitespace-nowrap">{{ formatDateTime(value) }}</span>
             </template>
 
             <template #actions="{ row }">
