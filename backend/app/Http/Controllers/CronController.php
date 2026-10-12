@@ -31,6 +31,7 @@ class CronController extends Controller
         // Runs after the response is sent, so the scheduler's short request
         // timeout isn't hit while emails are going out.
         defer(fn () => Artisan::call(SendOverdueReminders::class));
+        defer(fn () => app(\App\Services\MaintenanceReminderService::class)->sendDueTodayOncePerDay());
 
         return response('Overdue reminders started.');
     }

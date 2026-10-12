@@ -67,6 +67,11 @@ return [
 
     'timezone' => 'UTC',
 
+    // The school's own time zone (the app stores times in UTC). Times people
+    // type — an activity's start/end time — and "today" for reminders are
+    // read in this zone.
+    'local_timezone' => env('APP_LOCAL_TIMEZONE', 'Asia/Manila'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

@@ -36,7 +36,7 @@ class ActivityQrSecurityTest extends TestCase
         parent::setUp();
         Mail::fake();
         $this->withoutVite();
-        $this->travelTo(now()->setTime(10, 0));
+        $this->travelTo(now('Asia/Manila')->setTime(10, 0)->utc());
 
         $this->carmen = Campus::create(['campus_name' => 'PHINMA COC – Carmen']);
         $location = Location::create(['campus_id' => $this->carmen->id, 'location_name' => 'Lab Storage Room – Carmen']);
@@ -82,8 +82,8 @@ class ActivityQrSecurityTest extends TestCase
 
     public function test_the_qr_window_comes_from_the_activity_time(): void
     {
-        $this->assertSame('08:45', $this->activity->qr_opens_at->format('H:i'));
-        $this->assertSame('12:00', $this->activity->qr_closes_at->format('H:i'));
+        $this->assertSame('08:45', $this->activity->qr_opens_at->setTimezone('Asia/Manila')->format('H:i'));
+        $this->assertSame('12:00', $this->activity->qr_closes_at->setTimezone('Asia/Manila')->format('H:i'));
     }
 
     public function test_scanning_only_asks_to_join_and_the_instructor_approves(): void
@@ -141,11 +141,11 @@ class ActivityQrSecurityTest extends TestCase
 
     public function test_the_qr_only_works_during_the_activity_time_and_can_be_extended(): void
     {
-        $this->travelTo(now()->setTime(8, 30));
+        $this->travelTo(now('Asia/Manila')->setTime(8, 30)->utc());
         $this->scan($this->ana)->assertSessionHas('error');
         $this->assertNull($this->joinStatus($this->ana));
 
-        $this->travelTo(now()->setTime(12, 5));
+        $this->travelTo(now('Asia/Manila')->setTime(12, 5)->utc());
         $this->scan($this->ana)->assertSessionHas('error');
         $this->assertNull($this->joinStatus($this->ana), 'An expired QR (e.g. a screenshot shared later) does nothing.');
 

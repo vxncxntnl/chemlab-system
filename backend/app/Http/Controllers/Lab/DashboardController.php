@@ -17,6 +17,9 @@ class DashboardController extends Controller
 
     public function index()
     {
+        // Once a day: remind about maintenance scheduled or due today.
+        app(\App\Services\MaintenanceReminderService::class)->sendDueTodayOncePerDay();
+
         $this->fineService->updateAllOverdueBorrowings();
 
         $user = auth()->user();

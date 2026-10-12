@@ -135,8 +135,11 @@ class Activity extends Model
         }
 
         $date = Carbon::parse($this->activity_date)->toDateString();
-        $this->qr_opens_at = Carbon::parse("{$date} {$this->start_time}")->subMinutes(self::QR_OPENS_EARLY_MINUTES);
-        $this->qr_closes_at = Carbon::parse("{$date} {$this->end_time}");
+        // The instructor types Philippine time; stored in the app's time zone (UTC).
+        $local = config('app.local_timezone');
+        $app = config('app.timezone');
+        $this->qr_opens_at = Carbon::parse("{$date} {$this->start_time}", $local)->subMinutes(self::QR_OPENS_EARLY_MINUTES)->setTimezone($app);
+        $this->qr_closes_at = Carbon::parse("{$date} {$this->end_time}", $local)->setTimezone($app);
     }
 
     /**
@@ -146,7 +149,7 @@ class Activity extends Model
     public function qrWindowMessage(): ?string
     {
         if ($this->qr_opens_at && now()->lt($this->qr_opens_at)) {
-            return "This QR code opens at {$this->qr_opens_at->format('M j, g:i A')}. Please scan it again then.";
+            return "This QR code opens at {$this->qr_opens_at->copy()->setTimezone(config('app.local_timezone'))->format('M j, g:i A')}. Please scan it again then.";
         }
         if ($this->qr_closes_at && now()->gt($this->qr_closes_at)) {
             return 'This QR code has expired (the activity time is over). Ask your instructor for a new one.';

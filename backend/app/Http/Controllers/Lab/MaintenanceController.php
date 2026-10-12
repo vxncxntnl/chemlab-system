@@ -76,7 +76,9 @@ class MaintenanceController extends Controller
         $validated['equipment_unit_id'] = \App\Support\MaintenanceUnits::validatedUnitId($request, (int) $campusId);
         $validated['campus_id'] = $campusId;
 
-        MaintenanceLog::create(MaintenanceLog::normalize($validated));
+        $maintenance = MaintenanceLog::create(MaintenanceLog::normalize($validated));
+        // Scheduled for today: tell the campus lab staff/admin now.
+        app(\App\Services\MaintenanceReminderService::class)->notifyIfToday($maintenance, auth()->user());
 
         // If it's a completed repair, restore equipment condition to good
         if ($validated['type'] === 'repair' && $validated['status'] === 'completed') {

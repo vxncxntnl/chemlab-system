@@ -305,7 +305,7 @@ class ActivityController extends Controller
 
         AuditLog::log(auth()->id(), 'Extended Activity QR', 'activities', $activity->id, null, ['closes_at' => $activity->qr_closes_at]);
 
-        return back()->with('success', "QR code now works until {$activity->qr_closes_at->format('g:i A')}.");
+        return back()->with('success', "QR code now works until {$activity->qr_closes_at->copy()->setTimezone(config('app.local_timezone'))->format('g:i A')}.");
     }
 
     /** A new QR code: the old one (and every screenshot of it) stops working. */
