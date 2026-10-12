@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LabLayout from '@/Layouts/LabLayout.vue';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import Card from '@/Components/Card.vue';
 import Badge from '@/Components/Badge.vue';
 import { Link, router } from '@inertiajs/vue3';
@@ -35,6 +36,9 @@ const applyFilters = () => {
 // Photos whose file is missing (e.g. wiped by a redeploy on free hosting)
 // show the placeholder instead of a broken image.
 const failedImages = ref<string[]>([]);
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applyFilters());
 </script>
 
 <template>

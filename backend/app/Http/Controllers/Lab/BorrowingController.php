@@ -105,7 +105,7 @@ class BorrowingController extends Controller
 
         if ($request->search) {
             $query->whereHas('user', function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%");
+                $q->whereLike('name', "%{$request->search}%");
             });
         }
 

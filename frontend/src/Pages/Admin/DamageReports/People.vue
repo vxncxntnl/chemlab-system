@@ -4,6 +4,7 @@
  * reports (as borrower or faculty in-charge), with department/course.
  */
 import { formatDateTime } from '@/utils/date';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import BackButton from '@/Components/BackButton.vue';
@@ -47,6 +48,9 @@ const columns = [
 ];
 
 const selectClass = 'rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20';
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => apply());
 </script>
 
 <template>

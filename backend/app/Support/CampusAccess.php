@@ -39,7 +39,7 @@ class CampusAccess
     public static function mainCampusId(): ?int
     {
         // Looked up once per request.
-        return once(fn () => Campus::where('campus_name', 'like', '%Carmen%')->orderBy('id')->value('id')
+        return once(fn () => Campus::whereLike('campus_name', '%Carmen%')->orderBy('id')->value('id')
             ?? Campus::orderBy('id')->value('id'));
     }
 
@@ -98,7 +98,7 @@ class CampusAccess
      */
     public static function storageRoomId(int $campusId): int
     {
-        $existing = Location::where('campus_id', (int) $campusId)->where('location_name', 'like', 'Lab Storage Room%')->orderBy('id')->value('id');
+        $existing = Location::where('campus_id', (int) $campusId)->whereLike('location_name', 'Lab Storage Room%')->orderBy('id')->value('id');
         if ($existing) {
             return $existing;
         }

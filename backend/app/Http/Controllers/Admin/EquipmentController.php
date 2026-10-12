@@ -28,9 +28,9 @@ class EquipmentController extends Controller
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                    ->orWhere('category', 'like', "%{$request->search}%")
-                    ->orWhere('serial_number', 'like', "%{$request->search}%");
+                $q->whereLike('name', "%{$request->search}%")
+                    ->orWhereLike('category', "%{$request->search}%")
+                    ->orWhereLike('serial_number', "%{$request->search}%");
             });
         }
 
@@ -71,9 +71,9 @@ class EquipmentController extends Controller
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                    ->orWhere('category', 'like', "%{$request->search}%")
-                    ->orWhere('serial_number', 'like', "%{$request->search}%");
+                $q->whereLike('name', "%{$request->search}%")
+                    ->orWhereLike('category', "%{$request->search}%")
+                    ->orWhereLike('serial_number', "%{$request->search}%");
             });
         }
 

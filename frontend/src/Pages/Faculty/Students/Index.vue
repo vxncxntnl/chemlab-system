@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UserLayout from '@/Layouts/UserLayout.vue';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -34,6 +35,9 @@ const resend = (id: number) => {
 };
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applySearch());
 </script>
 
 <template>

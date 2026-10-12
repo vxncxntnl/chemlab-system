@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     activities: {
         data: Array<any>;
         current_page: number;
@@ -15,7 +16,7 @@ defineProps<{
     filters: { search?: string; status?: string };
 }>();
 
-const search = ref('');
+const search = ref(props.filters?.search || '');
 const statusFilter = ref('');
 const showDeleteModal = ref(false);
 const deleteTargetId = ref<number | null>(null);
@@ -40,6 +41,9 @@ const statusBadge: Record<string, string> = {
 };
 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applyFilters());
 </script>
 
 <template>

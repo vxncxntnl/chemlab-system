@@ -18,10 +18,10 @@ class LabInventoryController extends Controller
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
-                $q->where('description', 'like', "%{$request->search}%")
-                    ->orWhere('item_no', 'like', "%{$request->search}%")
-                    ->orWhere('storage_location', 'like', "%{$request->search}%")
-                    ->orWhere('brand', 'like', "%{$request->search}%");
+                $q->whereLike('description', "%{$request->search}%")
+                    ->orWhereLike('item_no', "%{$request->search}%")
+                    ->orWhereLike('storage_location', "%{$request->search}%")
+                    ->orWhereLike('brand', "%{$request->search}%");
             });
         }
 
@@ -36,19 +36,19 @@ class LabInventoryController extends Controller
         if ($request->condition) {
             switch ($request->condition) {
                 case 'good':
-                    $query->where('condition_remarks', 'like', '%Good%')
-                        ->orWhere('condition_remarks', 'like', '%Working%');
+                    $query->whereLike('condition_remarks', '%Good%')
+                        ->orWhereLike('condition_remarks', '%Working%');
                     break;
                 case 'defective':
-                    $query->where('condition_remarks', 'like', '%Broken%')
-                        ->orWhere('condition_remarks', 'like', '%Damage%')
-                        ->orWhere('condition_remarks', 'like', '%Not Working%');
+                    $query->whereLike('condition_remarks', '%Broken%')
+                        ->orWhereLike('condition_remarks', '%Damage%')
+                        ->orWhereLike('condition_remarks', '%Not Working%');
                     break;
                 case 'needs_repair':
-                    $query->where('condition_remarks', 'like', '%repair%');
+                    $query->whereLike('condition_remarks', '%repair%');
                     break;
                 case 'for_disposal':
-                    $query->where('condition_remarks', 'like', '%Disposal%');
+                    $query->whereLike('condition_remarks', '%Disposal%');
                     break;
             }
         }

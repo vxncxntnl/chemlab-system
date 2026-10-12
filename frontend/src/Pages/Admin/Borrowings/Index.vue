@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
 import EmptyState from '@/Components/EmptyState.vue';
@@ -10,7 +11,7 @@ import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
 
 const { formatStatus, statusVariant } = useBorrowingStatus();
 
-defineProps<{
+const props = defineProps<{
     borrowings: {
         data: Array<any>;
         current_page: number;
@@ -25,7 +26,7 @@ defineProps<{
     };
 }>();
 
-const search = ref('');
+const search = ref(props.filters?.search || '');
 const statusFilter = ref('');
 
 // A QR activity row stands for all of that activity's student requests:
@@ -48,6 +49,9 @@ const applyFilters = () => {
 };
 
 const formatDate = (date: string) => new Date(date).toLocaleDateString();
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applyFilters());
 </script>
 
 <template>

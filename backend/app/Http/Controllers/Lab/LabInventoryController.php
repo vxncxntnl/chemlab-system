@@ -31,9 +31,9 @@ class LabInventoryController extends Controller
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
-                $q->where('description', 'like', "%{$request->search}%")
-                    ->orWhere('item_no', 'like', "%{$request->search}%")
-                    ->orWhere('brand', 'like', "%{$request->search}%");
+                $q->whereLike('description', "%{$request->search}%")
+                    ->orWhereLike('item_no', "%{$request->search}%")
+                    ->orWhereLike('brand', "%{$request->search}%");
             });
         }
 

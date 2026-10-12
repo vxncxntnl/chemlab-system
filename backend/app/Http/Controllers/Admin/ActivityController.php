@@ -22,8 +22,8 @@ class ActivityController extends Controller
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
-                $q->where('title', 'like', "%{$request->search}%")
-                  ->orWhere('department', 'like', "%{$request->search}%");
+                $q->whereLike('title', "%{$request->search}%")
+                  ->orWhereLike('department', "%{$request->search}%");
             });
         }
 

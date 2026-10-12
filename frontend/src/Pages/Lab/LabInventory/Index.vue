@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LabLayout from '@/Layouts/LabLayout.vue';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import { router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -55,6 +56,9 @@ const saveEdit = (item: any) => {
         },
     });
 };
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applyFilters());
 </script>
 
 <template>

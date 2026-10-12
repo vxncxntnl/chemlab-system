@@ -25,9 +25,9 @@ class StudentController extends Controller
         $students = User::where('role', 'student')
             ->where('created_by', auth()->id())
             ->when($request->search, fn ($q, $search) => $q->where(fn ($q) => $q
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('student_id', 'like', "%{$search}%")))
+                ->whereLike('name', "%{$search}%")
+                ->orWhereLike('email', "%{$search}%")
+                ->orWhereLike('student_id', "%{$search}%")))
             ->orderBy('name')
             ->paginate(15)
             ->withQueryString();

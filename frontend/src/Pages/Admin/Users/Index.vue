@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatDateTime } from '@/utils/date';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
@@ -7,7 +8,7 @@ import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     users: {
         data: Array<any>;
         current_page: number;
@@ -23,7 +24,7 @@ defineProps<{
     };
 }>();
 
-const search = ref('');
+const search = ref(props.filters?.search || '');
 const roleFilter = ref('');
 const statusFilter = ref('');
 
@@ -78,6 +79,9 @@ const doSuspend = () => { router.post(route('admin.users.suspend', actionTargetI
 
 const deleteUser = (id: number) => { actionTargetId.value = id; showDeleteModal.value = true; };
 const doDelete = () => { router.delete(route('admin.users.destroy', actionTargetId.value!)); showDeleteModal.value = false; };
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applyFilters());
 </script>
 
 <template>

@@ -41,7 +41,7 @@ class BorrowingController extends Controller
                 $q->whereIn('status', (array) $request->status);
             }
             if ($request->search) {
-                $q->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$request->search}%"));
+                $q->whereHas('user', fn ($q) => $q->whereLike('name', "%{$request->search}%"));
             }
         };
 

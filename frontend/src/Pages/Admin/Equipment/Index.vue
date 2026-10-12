@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import DataTable from '@/Components/DataTable.vue';
 import Badge from '@/Components/Badge.vue';
 import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     equipment: {
         data: Array<any>;
         current_page: number;
@@ -22,7 +23,7 @@ defineProps<{
     };
 }>();
 
-const search = ref('');
+const search = ref(props.filters?.search || '');
 const categoryFilter = ref('');
 
 const columns = [
@@ -56,6 +57,9 @@ const showDeleteModal = ref(false);
 const deleteTargetId = ref<number | null>(null);
 const deleteEquipment = (id: number) => { deleteTargetId.value = id; showDeleteModal.value = true; };
 const doDelete = () => { router.delete(route('admin.equipment.destroy', deleteTargetId.value!)); showDeleteModal.value = false; };
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applyFilters());
 </script>
 
 <template>

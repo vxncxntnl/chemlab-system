@@ -70,20 +70,20 @@ class LabInventory extends Model
 
     public function scopeGoodCondition($query)
     {
-        return $query->where('condition_remarks', 'like', '%Good%')
-            ->orWhere('condition_remarks', 'like', '%Working%');
+        return $query->whereLike('condition_remarks', '%Good%')
+            ->orWhereLike('condition_remarks', '%Working%');
     }
 
     public function scopeDefective($query)
     {
-        return $query->where('condition_remarks', 'like', '%Broken%')
-            ->orWhere('condition_remarks', 'like', '%Damage%')
-            ->orWhere('condition_remarks', 'like', '%Not Working%');
+        return $query->whereLike('condition_remarks', '%Broken%')
+            ->orWhereLike('condition_remarks', '%Damage%')
+            ->orWhereLike('condition_remarks', '%Not Working%');
     }
 
     public function scopeNeedsRepair($query)
     {
-        return $query->where('condition_remarks', 'like', '%repair%');
+        return $query->whereLike('condition_remarks', '%repair%');
     }
 
     public function getConditionStatusAttribute(): string

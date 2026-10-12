@@ -68,7 +68,7 @@ class DamageReportController extends Controller
         $logs = AuditLog::with('user:id,name,role')
             ->where('table_affected', 'damage_reports')
             ->whereIn('record_id', $campusReports)
-            ->when($request->action, fn ($q, $action) => $q->where('action', 'like', "%{$action}%"))
+            ->when($request->action, fn ($q, $action) => $q->whereLike('action', "%{$action}%"))
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(20)

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import UserLayout from '@/Layouts/UserLayout.vue';
+import { useLiveSearch } from '@/composables/useLiveSearch';
 import EmptyState from '@/Components/EmptyState.vue';
 import EquipmentBrowseCard from '@/Components/EquipmentBrowseCard.vue';
 import EquipmentDetailsModal from '@/Components/EquipmentDetailsModal.vue';
@@ -62,6 +63,9 @@ const refreshAvailability = () => {
 
 onMounted(() => { refreshInterval = setInterval(refreshAvailability, 30000); });
 onBeforeUnmount(() => { if (refreshInterval) clearInterval(refreshInterval); });
+
+// Search as you type — clearing the box shows everything again.
+useLiveSearch(search, () => applyFilters());
 </script>
 
 <template>
