@@ -69,10 +69,13 @@ class QrActivityCourseRestrictionTest extends TestCase
     {
         $nursing = $this->student('Nursing');
 
+        // Scanning asks to join; once the instructor approves, the QR opens the form.
+        $this->actingAs($nursing)->get('/qr/' . $this->qr->token)->assertRedirect(route('dashboard'));
+        $this->assertTrue($this->activity->students()->where('activity_students.student_id', $nursing->id)->exists());
+
+        $this->activity->students()->updateExistingPivot($nursing->id, ['status' => 'approved']);
         $this->actingAs($nursing)->get('/qr/' . $this->qr->token)
             ->assertRedirect(route('student.borrowings.create', ['inventory_id' => $this->inventory->id, 'activity_id' => $this->activity->id]));
-
-        $this->assertTrue($this->activity->students()->where('activity_students.student_id', $nursing->id)->exists());
     }
 
     public function test_another_course_cannot_borrow_for_the_activity_by_submitting_it_directly(): void

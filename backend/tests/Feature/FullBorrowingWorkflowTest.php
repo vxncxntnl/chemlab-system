@@ -92,9 +92,9 @@ class FullBorrowingWorkflowTest extends TestCase
         $this->assertSame('approved', $request->fresh()->status);
 
         // 5. Lab staff release, with claim code + borrower ID check.
-        $this->actingAs($this->labStaff)->post("/lab/borrowings/{$request->id}/release", ['claim_code' => 'WRONG', 'student_id' => '02-0000-00001'])
+        $this->actingAs($this->labStaff)->post("/lab/borrowings/{$request->id}/release", ['claim_code' => 'WRONG', 'student_id' => '02-0000-00001', 'id_checked' => '1'])
             ->assertSessionHas('error');
-        $this->actingAs($this->labStaff)->post("/lab/borrowings/{$request->id}/release", ['claim_code' => $request->fresh()->claim_code, 'student_id' => '02-0000-00001'])
+        $this->actingAs($this->labStaff)->post("/lab/borrowings/{$request->id}/release", ['claim_code' => $request->fresh()->claim_code, 'student_id' => '02-0000-00001', 'id_checked' => '1'])
             ->assertSessionHas('success');
         $this->assertSame('borrowed', $request->fresh()->status);
         $this->assertSame(6, $this->beakers->fresh()->available_quantity, 'Release does not deduct stock a second time (3 here + 1 in the second request).');

@@ -65,6 +65,7 @@ class LabStaffCampusIsolationTest extends TestCase
         $response = $this->actingAs($this->labStaffA)->post("/lab/borrowings/{$borrowing->id}/release", [
             'claim_code' => $borrowing->claim_code,
             'student_id' => $borrowing->user->student_id ?? 'x',
+            'id_checked' => '1',
         ]);
 
         $response->assertForbidden();
@@ -92,6 +93,7 @@ class LabStaffCampusIsolationTest extends TestCase
         $release = $this->actingAs($this->labStaffA)->post("/lab/borrowings/{$borrowing->id}/release", [
             'claim_code' => $borrowing->claim_code,
             'student_id' => $borrowing->user->student_id ?? 'x',
+            'id_checked' => '1',
         ]);
         $release->assertRedirect();
         $this->assertSame('borrowed', $borrowing->fresh()->status);

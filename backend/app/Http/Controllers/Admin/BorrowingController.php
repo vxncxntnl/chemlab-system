@@ -243,6 +243,8 @@ class BorrowingController extends Controller
         $borrowing->load([
             'user',
             'faculty',
+            // For the ID check at release.
+            'user.campus:id,campus_name',
             'approver',
             'borrowingEquipment.equipment',
             'borrowingEquipment.inventory.campus',
@@ -298,10 +300,16 @@ class BorrowingController extends Controller
         return back()->with('success', 'Borrowing request rejected.');
     }
 
-    public function release(Borrowing $borrowing)
+    public function release(Request $request, Borrowing $borrowing)
     {
         if ($borrowing->status !== 'approved') {
             return back()->with('error', 'This borrowing is not ready for release.');
+        }
+
+        // Same ID check as lab staff: the student number from the school ID.
+        $borrowing->load('user');
+        if ($idError = $this->borrowingService->releaseIdCheckError($request, $borrowing)) {
+            return back()->with('error', $idError);
         }
 
         try {

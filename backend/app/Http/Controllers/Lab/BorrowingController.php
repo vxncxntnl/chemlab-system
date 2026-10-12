@@ -142,6 +142,9 @@ class BorrowingController extends Controller
         $borrowing->load([
             'user',
             'faculty',
+            // For the ID check at release.
+            'user.campus:id,campus_name',
+            'activity:id,title',
             'approver',
             'borrowingEquipment.equipment',
             'borrowingEquipment.inventory.campus',
@@ -164,7 +167,6 @@ class BorrowingController extends Controller
 
         $request->validate([
             'claim_code' => 'required|string',
-            'student_id' => 'required|string',
         ]);
 
         $borrowing->load('user');
@@ -173,9 +175,9 @@ class BorrowingController extends Controller
             return back()->with('error', 'Invalid claim code provided.');
         }
 
-        $expectedId = (string) ($borrowing->user->student_id ?? $borrowing->user->employee_id ?? '');
-        if ($expectedId === '' || $expectedId !== (string) $request->input('student_id')) {
-            return back()->with('error', 'Provided ID does not match this borrowing record.');
+        // The student number typed from the borrower's school ID must match.
+        if ($idError = $this->borrowingService->releaseIdCheckError($request, $borrowing)) {
+            return back()->with('error', $idError);
         }
 
         try {

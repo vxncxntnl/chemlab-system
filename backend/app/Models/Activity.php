@@ -19,7 +19,13 @@ class Activity extends Model
         'title',
         'instructor_id',
         'department',
+        'class_label',
         'activity_date',
+        'start_time',
+        'end_time',
+        'qr_opens_at',
+        'qr_closes_at',
+        'qr_live',
         'return_date',
         'status',
         'description',
@@ -34,6 +40,9 @@ class Activity extends Model
         return [
             'activity_date' => 'date:Y-m-d',
             'return_date' => 'date:Y-m-d',
+            'qr_opens_at' => 'datetime',
+            'qr_closes_at' => 'datetime',
+            'qr_live' => 'boolean',
         ];
     }
 
@@ -64,10 +73,113 @@ class Activity extends Model
         return $this->belongsTo(User::class, 'instructor_id')->withTrashed();
     }
 
+    /**
+     * Everyone on the activity's list. Each entry has a status: 'approved'
+     * (may borrow), 'pending' (scanned the QR, waiting for the instructor)
+     * or 'rejected' (the instructor removed them).
+     */
     public function students(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'activity_students', 'activity_id', 'student_id')
+            ->withPivot(['status', 'approved_by', 'approved_at'])
             ->withTimestamps();
+    }
+
+    /** Students the instructor approved — the only ones who can borrow for it. */
+    public function approvedStudents(): BelongsToMany
+    {
+        return $this->students()->wherePivot('status', 'approved');
+    }
+
+    public function isApprovedStudent(int $userId): bool
+    {
+        return $this->approvedStudents()->where('activity_students.student_id', $userId)->exists();
+    }
+
+    /**
+     * "Remember my students": the same instructor already approved this
+     * student in another activity with the same class label (e.g. "Chem 101
+     * – BSIT4-05"). Without a class label nothing is remembered, so an
+     * instructor's other sections are never let in automatically.
+     */
+    public function wasApprovedBeforeForSameClass(int $userId): bool
+    {
+        $label = mb_strtolower(trim((string) $this->class_label));
+        if ($label === '') {
+            return false;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('activity_students')
+            ->join('activities', 'activities.id', '=', 'activity_students.activity_id')
+            ->where('activity_students.student_id', $userId)
+            ->where('activity_students.status', 'approved')
+            ->where('activities.instructor_id', $this->instructor_id)
+            ->where('activities.id', '!=', $this->id)
+            ->whereRaw('LOWER(TRIM(activities.class_label)) = ?', [$label])
+            ->exists();
+    }
+
+    // ── QR time window and Live mode ────────────────────────────────────
+
+    /** Scans are accepted from this many minutes before the start time. */
+    public const QR_OPENS_EARLY_MINUTES = 15;
+
+    /** Live (classroom) mode: the code on screen changes this often. */
+    public const LIVE_CODE_SECONDS = 60;
+
+    /** Sets when the QR works from the activity's date and start/end time. */
+    public function setQrWindowFromTimes(): void
+    {
+        if (!$this->start_time || !$this->end_time || !$this->activity_date) {
+            return;
+        }
+
+        $date = Carbon::parse($this->activity_date)->toDateString();
+        $this->qr_opens_at = Carbon::parse("{$date} {$this->start_time}")->subMinutes(self::QR_OPENS_EARLY_MINUTES);
+        $this->qr_closes_at = Carbon::parse("{$date} {$this->end_time}");
+    }
+
+    /**
+     * Why a scan right now isn't accepted (null = it is). Activities made
+     * before the time window existed have no limit.
+     */
+    public function qrWindowMessage(): ?string
+    {
+        if ($this->qr_opens_at && now()->lt($this->qr_opens_at)) {
+            return "This QR code opens at {$this->qr_opens_at->format('M j, g:i A')}. Please scan it again then.";
+        }
+        if ($this->qr_closes_at && now()->gt($this->qr_closes_at)) {
+            return 'This QR code has expired (the activity time is over). Ask your instructor for a new one.';
+        }
+
+        return null;
+    }
+
+    /** The code shown in the Live QR for a given minute (0 = now, -1 = the previous one). */
+    public function liveCode(int $offset = 0): string
+    {
+        $window = intdiv(now()->getTimestamp(), self::LIVE_CODE_SECONDS) + $offset;
+
+        return substr(hash_hmac('sha256', $this->qr_token . '|' . $window, (string) config('app.key')), 0, 12);
+    }
+
+    /** A Live QR code is accepted for about two minutes (the current and previous one). */
+    public function acceptsLiveCode(?string $code): bool
+    {
+        return $code !== null && (hash_equals($this->liveCode(), $code) || hash_equals($this->liveCode(-1), $code));
+    }
+
+    /** The link in the Live QR right now. */
+    public function liveQrUrl(): string
+    {
+        return $this->qrScanUrl() . '?c=' . $this->liveCode();
+    }
+
+    /** A new QR token: every earlier QR code / screenshot stops working. */
+    public function regenerateQrToken(): void
+    {
+        $this->qr_token = Str::random(40);
+        $this->save();
     }
 
     public function borrowings(): HasMany

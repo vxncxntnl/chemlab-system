@@ -82,6 +82,9 @@ Route::get('/', function () {
 
 // Redirect to role-based dashboard
 Route::get('/dashboard', function () {
+    // Keep any message (e.g. from a QR scan) for the role dashboard this
+    // redirects to — otherwise it's used up by this extra redirect.
+    session()->reflash();
     $user = auth()->user();
     return match($user->role) {
         'admin' => redirect()->route('admin.dashboard'),
@@ -258,6 +261,13 @@ Route::middleware(['auth', 'role:faculty', 'throttle:300,1'])->prefix('faculty')
     Route::get('/dashboard', [FacultyDashboardController::class, 'index'])->name('dashboard');
     Route::resource('activities', FacultyActivityController::class);
     Route::post('/activities/{activity}/cancel', [FacultyActivityController::class, 'cancel'])->name('activities.cancel');
+    // QR security: approve students who scanned, QR time / new QR / Live mode
+    Route::post('/activities/{activity}/students', [FacultyActivityController::class, 'decideStudents'])->name('activities.students.decide');
+    Route::post('/activities/{activity}/qr/extend', [FacultyActivityController::class, 'extendQr'])->name('activities.qr.extend');
+    Route::post('/activities/{activity}/qr/regenerate', [FacultyActivityController::class, 'regenerateQr'])->name('activities.qr.regenerate');
+    Route::post('/activities/{activity}/qr/live-mode', [FacultyActivityController::class, 'setLiveMode'])->name('activities.qr.live-mode');
+    Route::get('/activities/{activity}/qr/live', [FacultyActivityController::class, 'live'])->name('activities.qr.live');
+    Route::get('/activities/{activity}/qr/live-code', [FacultyActivityController::class, 'liveCode'])->name('activities.qr.live-code');
     Route::get('/equipment', [FacultyBorrowingController::class, 'equipment'])->name('equipment');
     Route::get('/borrowings', [FacultyBorrowingController::class, 'index'])->name('borrowings.index');
     Route::get('/borrowings/create', [FacultyBorrowingController::class, 'create'])->name('borrowings.create');

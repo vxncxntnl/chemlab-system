@@ -11,6 +11,7 @@ import TextInput from '@/Components/TextInput.vue';
 import QrCode from '@/Components/QrCode.vue';
 import BackButton from '@/Components/BackButton.vue';
 import RecordDamageModal from '@/Components/RecordDamageModal.vue';
+import ReleaseIdCheck from '@/Components/ReleaseIdCheck.vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -48,7 +49,9 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString();
 
 const claimForm = useForm({
     claim_code: props.borrowing?.claim_code || '',
-    student_id: props.borrowing?.user?.student_id || '',
+    // Typed by lab staff from the borrower's school ID — not filled in.
+    student_id: '',
+    id_checked: false,
 });
 
 const release = () => {
@@ -257,6 +260,8 @@ const markNoDamage = (itemId: number) => {
                         <InputError :message="claimForm.errors.claim_code" class="mt-2" />
                     </div>
                 </div>
+
+                <ReleaseIdCheck :borrower="borrowing.user" :activity-title="borrowing.activity?.title" :form="claimForm" />
 
                 <div class="flex items-center justify-end gap-3">
                     <PrimaryButton :disabled="claimForm.processing">

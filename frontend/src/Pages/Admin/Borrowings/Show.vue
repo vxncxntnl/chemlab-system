@@ -9,6 +9,7 @@ import BackButton from '@/Components/BackButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import RecordDamageModal from '@/Components/RecordDamageModal.vue';
+import ReleaseIdCheck from '@/Components/ReleaseIdCheck.vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { useBorrowingStatus } from '@/composables/useBorrowingStatus';
@@ -71,7 +72,14 @@ const doReturn = () => {
 
 // Admin can release as a backup when no lab staff is available.
 const showReleaseModal = ref(false);
-const doRelease = () => { router.post(route('admin.borrowings.release', props.borrowing.id)); showReleaseModal.value = false; };
+// Same ID check as lab staff: the number is typed from the school ID.
+const releaseForm = useForm({ student_id: '', id_checked: false });
+const doRelease = () => {
+    releaseForm.post(route('admin.borrowings.release', props.borrowing.id), {
+        preserveScroll: true,
+        onSuccess: () => { showReleaseModal.value = false; releaseForm.reset(); },
+    });
+};
 
 // Record a verified damage report for one borrowed item (with optional photo).
 const isOut = computed(() => ['borrowed', 'overdue'].includes(props.borrowing.status));
@@ -434,20 +442,8 @@ const markNoDamage = (itemId: number) => {
             @confirmed="doRelease"
             @cancelled="showReleaseModal = false"
         >
-            <dl class="space-y-1.5 rounded-lg bg-gray-50 p-3 text-sm">
-                <div class="flex justify-between gap-3">
-                    <dt class="text-gray-500">Borrower</dt>
-                    <dd class="text-right font-medium text-gray-900">{{ borrowing.user?.name }}</dd>
-                </div>
-                <div class="flex justify-between gap-3">
-                    <dt class="text-gray-500">ID</dt>
-                    <dd class="text-right font-mono text-gray-900">{{ borrowing.user?.student_id || borrowing.user?.employee_id || '—' }}</dd>
-                </div>
-                <div class="flex justify-between gap-3">
-                    <dt class="text-gray-500">Claim code</dt>
-                    <dd class="text-right font-mono text-gray-900 break-all">{{ borrowing.claim_code || '—' }}</dd>
-                </div>
-            </dl>
+            <ReleaseIdCheck :borrower="borrowing.user" :activity-title="(borrowing as any).activity?.title" :form="releaseForm" />
+            <p class="mt-2 text-xs text-gray-500">Claim code: <span class="font-mono">{{ borrowing.claim_code || '—' }}</span></p>
         </ConfirmModal>
         <RecordDamageModal :item="damageItem" :borrowing-id="borrowing.id" route-name="admin.borrowings.record-damage" @close="damageItem = null" />
     </AdminLayout>

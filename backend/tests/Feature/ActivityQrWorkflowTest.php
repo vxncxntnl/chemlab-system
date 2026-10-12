@@ -53,15 +53,27 @@ class ActivityQrWorkflowTest extends TestCase
         $this->actingAs($this->faculty)->post('/faculty/activities', [
             'title' => 'Titration Lab', 'status' => 'upcoming',
             'activity_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString(),
+            'start_time' => '08:00', 'end_time' => '17:00',
             'equipment_inventory_ids' => [$this->beakers->id, $this->burners->id],
         ])->assertSessionHasNoErrors();
         $this->activity = Activity::sole();
+        // These tests cover the borrowing workflow itself: no QR time limit,
+        // and the instructor has approved the class (QR security has its own
+        // tests in ActivityQrSecurityTest).
+        $this->activity->update(['qr_opens_at' => null, 'qr_closes_at' => null]);
+        $this->activity->students()->attach([$this->ana->id, $this->ben->id], ['status' => 'approved']);
         $this->post('/logout');
     }
 
     private function student(string $name, string $sid): User
     {
-        return User::factory()->create(['role' => 'student', 'status' => 'active', 'name' => $name, 'campus_id' => $this->campus->id, 'student_id' => $sid, 'course' => 'Nursing']);
+        $student = User::factory()->create(['role' => 'student', 'status' => 'active', 'name' => $name, 'campus_id' => $this->campus->id, 'student_id' => $sid, 'course' => 'Nursing']);
+        // Students made during a test are in the class too (approved).
+        if (isset($this->activity)) {
+            $this->activity->students()->attach($student->id, ['status' => 'approved']);
+        }
+
+        return $student;
     }
 
     private function stock(Location $location, string $name, int $qty): EquipmentInventory
@@ -236,7 +248,7 @@ class ActivityQrWorkflowTest extends TestCase
         // Ben's submit passed the quick check, then Ana took the last one
         // before his request was saved: the locked re-check stops him.
         $this->beakers->update(['available_quantity' => 0]);
-        $this->activity->students()->attach($this->ben->id);
+        $this->activity->students()->syncWithoutDetaching([$this->ben->id]);
 
         try {
             app(\App\Services\BorrowingService::class)->createBorrowing([
@@ -254,7 +266,7 @@ class ActivityQrWorkflowTest extends TestCase
 
     public function test_two_submits_at_once_by_one_student_make_only_one_request(): void
     {
-        $this->activity->students()->attach($this->ana->id);
+        $this->activity->students()->syncWithoutDetaching([$this->ana->id]);
         $service = app(\App\Services\BorrowingService::class);
         $data = ['faculty_id' => $this->faculty->id, 'activity_id' => $this->activity->id, 'borrow_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString()];
 
@@ -452,7 +464,7 @@ class ActivityQrWorkflowTest extends TestCase
         $this->assertSame('upcoming', $this->activity->fresh()->getRawOriginal('status'));
         $this->assertSame('expired', $this->activity->fresh()->status);
 
-        $this->activity->students()->attach($this->ana->id);
+        $this->activity->students()->syncWithoutDetaching([$this->ana->id]);
         $this->actingAs($this->ana)->get("/student/activities/{$this->activity->id}")
             ->assertInertia(fn ($page) => $page->where('activity.status', 'expired'));
         $this->actingAs($this->faculty)->get("/faculty/activities/{$this->activity->id}/edit")
@@ -519,7 +531,7 @@ class ActivityQrWorkflowTest extends TestCase
         $this->submit($this->ana, [$this->line($this->burners)])->assertSessionHasErrors('activity_id');
 
         $this->assertSame(1, Borrowing::where('user_id', $this->ana->id)->count());
-        $this->assertSame(1, $this->activity->students()->count(), 'Scanning twice doesn\'t duplicate the roster.');
+        $this->assertSame(1, $this->activity->students()->where('activity_students.student_id', $this->ana->id)->count(), 'Scanning twice doesn\'t duplicate the roster.');
     }
 
     public function test_students_cannot_add_equipment_the_instructor_did_not_select(): void
@@ -532,8 +544,10 @@ class ActivityQrWorkflowTest extends TestCase
         $this->assertSame(3, $this->microscopes->fresh()->available_quantity);
     }
 
-    public function test_a_student_who_did_not_scan_the_qr_cannot_borrow_for_the_activity(): void
+    public function test_a_student_the_instructor_has_not_approved_cannot_borrow_for_the_activity(): void
     {
+        // Scanned but still waiting for the instructor.
+        $this->activity->students()->updateExistingPivot($this->ana->id, ['status' => 'pending']);
         $this->submit($this->ana, [$this->line($this->beakers)])->assertSessionHasErrors('activity_id');
         $this->assertSame(0, Borrowing::count());
     }
@@ -543,6 +557,7 @@ class ActivityQrWorkflowTest extends TestCase
         $this->actingAs($this->faculty)->put("/faculty/activities/{$this->activity->id}", [
             'title' => 'Titration Lab', 'status' => 'upcoming',
             'activity_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString(),
+            'start_time' => '08:00', 'end_time' => '17:00',
             'equipment_inventory_ids' => [$this->burners->id, $this->microscopes->id],
         ])->assertSessionHasNoErrors();
         $token = $this->activity->fresh()->qr_token;

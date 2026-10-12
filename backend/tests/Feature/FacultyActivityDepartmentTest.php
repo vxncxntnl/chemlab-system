@@ -30,6 +30,7 @@ class FacultyActivityDepartmentTest extends TestCase
         return $overrides + [
             'title' => 'Surveying Lab', 'status' => 'upcoming',
             'activity_date' => now()->addDay()->toDateString(), 'return_date' => now()->addDays(2)->toDateString(),
+            'start_time' => '08:00', 'end_time' => '17:00',
         ];
     }
 

@@ -17,6 +17,9 @@ const form = useForm({
     department: props.activity.department,
     activity_date: props.activity.activity_date?.slice(0, 10) ?? '',
     return_date: props.activity.return_date?.slice(0, 10) ?? '',
+    start_time: props.activity.start_time?.slice(0, 5) ?? '',
+    end_time: props.activity.end_time?.slice(0, 5) ?? '',
+    class_label: props.activity.class_label ?? '',
     status: props.activity.status,
     description: props.activity.description ?? '',
     equipment_inventory_ids: [...(props.selectedInventoryIds ?? [])] as number[],
@@ -110,6 +113,28 @@ const submit = () => form.put(route('faculty.activities.update', props.activity.
                         <input v-model="form.return_date" type="date" required :min="form.activity_date || undefined"
                             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                         <InputError :message="form.errors.return_date" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Start Time <span class="text-red-500">*</span></label>
+                        <input v-model="form.start_time" type="time" required
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <InputError :message="form.errors.start_time" class="mt-1" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">End Time <span class="text-red-500">*</span></label>
+                        <input v-model="form.end_time" type="time" required
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <InputError :message="form.errors.end_time" class="mt-1" />
+                    </div>
+                    <p class="sm:col-span-2 -mt-2 text-xs text-gray-500">
+                        The QR code works only during this time (from 15 minutes before the start). You can extend it on the activity page.
+                    </p>
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Class / Section <span class="text-gray-400">(optional)</span></label>
+                        <input v-model="form.class_label" type="text" maxlength="100" placeholder="e.g., Chem 101 – BSN1-A"
+                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                        <p class="mt-1 text-xs text-gray-500">Students you approve for this class are let in automatically next time you use the same Class / Section.</p>
+                        <InputError :message="form.errors.class_label" class="mt-1" />
                     </div>
                 </div>
 

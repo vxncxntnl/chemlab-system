@@ -108,6 +108,7 @@ class ClaimCodeSecurityTest extends TestCase
         $response = $this->actingAs($labStaff)->post("/lab/borrowings/{$borrowing->id}/release", [
             'claim_code' => $borrowing->claim_code,
             'student_id' => $student->student_id,
+            'id_checked' => '1',
         ]);
 
         $response->assertRedirect();
@@ -141,6 +142,7 @@ class ClaimCodeSecurityTest extends TestCase
         $response = $this->actingAs($labStaff)->post("/lab/borrowings/{$borrowing->id}/release", [
             'claim_code' => $guessed,
             'student_id' => $student->student_id,
+            'id_checked' => '1',
         ]);
 
         $response->assertSessionHas('error');

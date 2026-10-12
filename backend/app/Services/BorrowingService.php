@@ -430,6 +430,30 @@ class BorrowingService
         return $locked;
     }
 
+    /**
+     * ID check at release (lab staff and admin): the releaser types the
+     * student number from the borrower's school ID — the form doesn't fill
+     * it in — and confirms they checked the ID. Returns an error message,
+     * or null when it matches.
+     */
+    public function releaseIdCheckError(\Illuminate\Http\Request $request, Borrowing $borrowing): ?string
+    {
+        $request->validate([
+            'student_id' => 'required|string|max:50',
+            'id_checked' => 'accepted',
+        ], [
+            'student_id.required' => "Type the student number from the borrower's school ID.",
+            'id_checked.accepted' => "Please check the borrower's school ID first.",
+        ]);
+
+        $expected = strtolower(trim((string) ($borrowing->user?->student_id ?? $borrowing->user?->employee_id ?? '')));
+        if ($expected === '' || $expected !== strtolower(trim((string) $request->input('student_id')))) {
+            return "The student number doesn't match this borrower. Don't release the equipment — check the school ID again.";
+        }
+
+        return null;
+    }
+
     public function markAsBorrowed(Borrowing $borrowing, int $userId): Borrowing
     {
         return $this->transitionLocked($borrowing, ['approved'], function (Borrowing $locked) use ($userId) {

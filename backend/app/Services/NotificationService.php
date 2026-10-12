@@ -478,6 +478,43 @@ class NotificationService
         ));
     }
 
+    public const JOIN_REQUEST_TITLE = 'Students Waiting to Join Your Activity';
+
+    /**
+     * A student scanned the activity QR and waits for approval. In-app only,
+     * and at most one unread notice per activity (a whole class scanning
+     * shouldn't flood the instructor).
+     */
+    public static function joinRequestReceived(Activity $activity, User $student): void
+    {
+        $instructor = $activity->instructor;
+        $link = "/faculty/activities/{$activity->id}";
+        if (!$instructor || UserNotification::where('user_id', $instructor->id)->whereNull('read_at')
+            ->where('title', self::JOIN_REQUEST_TITLE)->where('link', $link)->exists()) {
+            return;
+        }
+
+        self::send(
+            $instructor,
+            self::JOIN_REQUEST_TITLE,
+            "{$student->name} and possibly others scanned the QR code for \"{$activity->title}\". Open the activity to approve the students in your class.",
+            'info',
+            $link
+        );
+    }
+
+    /** The instructor approved the student: they can borrow now. */
+    public static function joinApproved(Activity $activity, User $student): void
+    {
+        self::sendWithEmail(
+            $student,
+            'You Can Now Borrow for Your Activity',
+            "Your instructor approved you for \"{$activity->title}\". You can now request the equipment for this activity.",
+            'success',
+            "/student/borrowings/create?activity_id={$activity->id}"
+        );
+    }
+
     public static function damageReported(Borrowing $borrowing): void
     {
         $user = $borrowing->user;

@@ -62,7 +62,7 @@ class QrRosterAndCourseRestrictionTest extends TestCase
         ]);
     }
 
-    public function test_qr_scan_from_same_campus_student_auto_enrolls_and_links_activity(): void
+    public function test_qr_scan_from_same_campus_student_waits_for_approval_then_links_activity(): void
     {
         $campus = Campus::create(['campus_name' => 'Main Campus']);
         $instructor = $this->makeInstructor($campus);
@@ -84,20 +84,19 @@ class QrRosterAndCourseRestrictionTest extends TestCase
             'token' => 'same-campus-token',
         ]);
 
-        $response = $this->actingAs($student)->get('/qr/' . $qr->token);
+        // Scanning only asks to join: the student waits for the instructor.
+        $this->actingAs($student)->get('/qr/' . $qr->token)->assertRedirect(route('dashboard'));
+        $this->assertSame('pending', $activity->students()->where('activity_students.student_id', $student->id)->first()->pivot->status);
 
-        $response->assertRedirect(route('student.borrowings.create', [
+        // Approved by the instructor: the QR now opens the activity's borrow form.
+        $activity->students()->updateExistingPivot($student->id, ['status' => 'approved']);
+        $this->actingAs($student)->get('/qr/' . $qr->token)->assertRedirect(route('student.borrowings.create', [
             'inventory_id' => $inventory->id,
             'activity_id' => $activity->id,
         ]));
-
-        $this->assertTrue(
-            $activity->students()->where('activity_students.student_id', $student->id)->exists(),
-            'Same-campus student should be auto-enrolled into the activity roster.'
-        );
     }
 
-    public function test_qr_scan_from_different_campus_student_skips_auto_enroll_and_activity_link(): void
+    public function test_qr_scan_from_different_campus_student_is_rejected(): void
     {
         $instructorCampus = Campus::create(['campus_name' => 'Main Campus']);
         $otherCampus = Campus::create(['campus_name' => 'Satellite Campus']);
@@ -123,10 +122,8 @@ class QrRosterAndCourseRestrictionTest extends TestCase
 
         $response = $this->actingAs($outsideStudent)->get('/qr/' . $qr->token);
 
-        // No activity_id in the redirect — falls back to a normal, non-auto-approved request.
-        $response->assertRedirect(route('student.borrowings.create', [
-            'inventory_id' => $inventory->id,
-        ]));
+        // Another campus can't use the activity's QR at all.
+        $response->assertRedirect(route('dashboard'))->assertSessionHas('error');
 
         $this->assertFalse(
             $activity->students()->where('activity_students.student_id', $outsideStudent->id)->exists(),

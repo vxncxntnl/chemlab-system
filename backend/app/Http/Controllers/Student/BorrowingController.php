@@ -57,7 +57,8 @@ class BorrowingController extends Controller
         $availableInventory = $this->inventoryService->getAvailableEquipment($user->campus_id);
         $faculties = User::where('role', 'faculty')->where('status', 'active')->where('campus_id', $user->campus_id)->get();
         $activities = Activity::with('instructor')
-            ->whereHas('students', fn($q) => $q->where('activity_students.student_id', auth()->id()))
+            // Only activities the instructor approved this student for.
+            ->whereHas('approvedStudents', fn($q) => $q->where('activity_students.student_id', auth()->id()))
             ->whereIn('status', ['upcoming', 'ongoing'])
             ->orderBy('activity_date')
             ->get()
@@ -211,10 +212,10 @@ class BorrowingController extends Controller
                 return back()->withErrors(['activity_id' => "The activity \"{$linked->title}\" is only for {$linked->department} students."]);
             }
 
-            // Only students who joined the activity (by scanning its QR) can
-            // borrow for it.
-            if ($linked && !$linked->students()->where('activity_students.student_id', auth()->id())->exists()) {
-                return back()->withErrors(['activity_id' => "Scan the QR code for \"{$linked->title}\" from your instructor to borrow for this activity."]);
+            // Only students the instructor approved for the activity can
+            // borrow for it (checked here too, not just when scanning).
+            if ($linked && !$linked->isApprovedStudent(auth()->id())) {
+                return back()->withErrors(['activity_id' => "You're not approved for \"{$linked->title}\" yet. Scan your instructor's QR code and wait for their approval."]);
             }
 
             if ($linked) {

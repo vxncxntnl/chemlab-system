@@ -52,6 +52,7 @@ class ActivityBorrowReturnDatesTest extends TestCase
         return $overrides + [
             'title' => 'Lab Exam', 'department' => 'Nursing', 'status' => 'upcoming',
             'activity_date' => now()->addDay()->toDateString(),
+            'start_time' => '08:00', 'end_time' => '17:00',
             'return_date' => now()->addDays(3)->toDateString(),
             'equipment_inventory_ids' => [$this->inventory->id],
         ];

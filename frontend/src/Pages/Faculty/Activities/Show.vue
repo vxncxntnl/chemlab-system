@@ -6,7 +6,35 @@ import ConfirmModal from '@/Components/ConfirmModal.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 
-const props = defineProps<{ activity: any; qrUrl: string }>();
+const props = defineProps<{
+    activity: any;
+    qrUrl: string;
+    // When the QR works, and whether it's in Classroom (Live) mode.
+    qr: { opens_at: string | null; closes_at: string | null; live: boolean; state: 'open' | 'not_open' | 'closed' };
+    // Students who scanned and wait for this instructor's approval.
+    waiting: Array<{ id: number; name: string; student_id: string | null; course: string | null; scanned_at: string; flags: string[] }>;
+}>();
+
+// Only approved students can borrow; the waiting ones are listed separately.
+const approvedStudents = computed(() => (props.activity.students ?? []).filter((s: any) => (s.pivot?.status ?? 'approved') === 'approved'));
+
+const selected = ref<number[]>([]);
+const decide = (decision: 'approve' | 'reject', ids: number[]) => {
+    if (!ids.length) return;
+    router.post(route('faculty.activities.students.decide', props.activity.id), { decision, student_ids: ids }, {
+        preserveScroll: true,
+        onSuccess: () => { selected.value = []; },
+    });
+};
+
+const timeText = (d: string | null) => d ? new Date(d).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null;
+const extend = (minutes: number) => router.post(route('faculty.activities.qr.extend', props.activity.id), { minutes }, { preserveScroll: true });
+const setLive = (live: boolean) => router.post(route('faculty.activities.qr.live-mode', props.activity.id), { live }, { preserveScroll: true });
+const showNewQrModal = ref(false);
+const doNewQr = () => {
+    router.post(route('faculty.activities.qr.regenerate', props.activity.id), {}, { preserveScroll: true });
+    showNewQrModal.value = false;
+};
 
 // What each joined student has done for this activity: their latest
 // request's status, or nothing yet.
@@ -106,13 +134,45 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                 </div>
             </div>
 
+            <!-- Students who scanned the QR and wait for approval -->
+            <div class="bg-white rounded-xl shadow p-6 mb-5" :class="waiting.length ? 'ring-2 ring-yellow-300' : ''">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-1">
+                    <h2 class="text-base font-semibold text-gray-800">
+                        Waiting for Your Approval
+                        <span class="ml-1 text-xs text-gray-400 font-normal">({{ waiting.length }})</span>
+                    </h2>
+                    <div v-if="waiting.length" class="flex flex-wrap gap-2">
+                        <button type="button" @click="decide('approve', waiting.map(w => w.id))"
+                            class="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700">Approve All</button>
+                        <button type="button" :disabled="!selected.length" @click="decide('approve', selected)"
+                            class="px-3 py-1.5 rounded-lg border border-green-300 text-green-700 text-sm font-semibold hover:bg-green-50 disabled:opacity-40">Approve Selected</button>
+                        <button type="button" :disabled="!selected.length" @click="decide('reject', selected)"
+                            class="px-3 py-1.5 rounded-lg border border-red-300 text-red-700 text-sm font-semibold hover:bg-red-50 disabled:opacity-40">Remove Selected</button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mb-4">
+                    Students who scanned your QR code. Approve the ones in your class — only approved students can borrow. Remove anyone who isn't.
+                </p>
+                <div v-if="waiting.length" class="divide-y divide-gray-100 rounded-lg border border-gray-200">
+                    <label v-for="w in waiting" :key="w.id" class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" :value="w.id" v-model="selected" class="rounded border-gray-300 text-green-600 focus:ring-green-500" />
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-gray-800">{{ w.name }}</p>
+                            <p class="text-xs text-gray-500">{{ w.student_id ?? 'No student no.' }} · {{ w.course ?? 'No course' }} · scanned {{ timeText(w.scanned_at) }}</p>
+                        </div>
+                        <span v-for="flag in w.flags" :key="flag" class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[11px] font-semibold">⚠ {{ flag }}</span>
+                    </label>
+                </div>
+                <p v-else class="text-sm text-gray-400">No one is waiting.</p>
+            </div>
+
             <div class="bg-white rounded-xl shadow p-6 mb-5">
                 <h2 class="text-base font-semibold text-gray-800 mb-4">
-                    Students Joined
-                    <span class="ml-1 text-xs text-gray-400 font-normal">({{ activity.students?.length ?? 0 }})</span>
+                    Approved Students
+                    <span class="ml-1 text-xs text-gray-400 font-normal">({{ approvedStudents.length }})</span>
                 </h2>
-                <div v-if="activity.students?.length" class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    <div v-for="student in activity.students" :key="student.id"
+                <div v-if="approvedStudents.length" class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <div v-for="student in approvedStudents" :key="student.id"
                         class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
                         <span class="w-7 h-7 rounded-full bg-green-100 text-green-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
                             {{ student.name.charAt(0).toUpperCase() }}
@@ -129,16 +189,40 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                         </div>
                     </div>
                 </div>
-                <p v-else class="text-sm text-gray-400">No students have joined yet.</p>
+                <p v-else class="text-sm text-gray-400">No approved students yet.</p>
             </div>
 
             <div class="bg-white rounded-xl shadow p-6 mb-5">
                 <h2 class="text-base font-semibold text-gray-800 mb-1">Activity QR Code</h2>
                 <p class="text-xs text-gray-400 mb-4">
-                    Share this ONE QR code in your class group chat. Students who scan it get a borrow request already filled with all the equipment below, linked to this activity. Each student's request is separate.
+                    Students who scan it ask to join this activity; after you approve them, they get a borrow request already filled with all the equipment below. Each student's request is separate.
                 </p>
+
+                <div class="mb-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <div class="flex flex-wrap items-center gap-2 text-sm">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                            :class="qr.state === 'open' ? 'bg-green-100 text-green-800' : qr.state === 'not_open' ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'">
+                            {{ qr.state === 'open' ? 'QR working now' : qr.state === 'not_open' ? 'Not open yet' : 'QR expired' }}
+                        </span>
+                        <span v-if="qr.opens_at || qr.closes_at" class="text-gray-600">
+                            Works {{ timeText(qr.opens_at) ?? 'now' }} – {{ timeText(qr.closes_at) ?? 'no end' }}
+                        </span>
+                        <span v-else class="text-gray-500">No time limit (older activity — edit it to set a start and end time).</span>
+                    </div>
+                    <!-- Instructors share the QR in the class group chat. (Classroom
+                         Live QR mode is hidden; an activity left in it can switch back.) -->
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" @click="extend(30)" class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50">Extend +30 min</button>
+                        <button type="button" @click="showNewQrModal = true" class="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50">Make New QR</button>
+                        <button v-if="qr.live" type="button" @click="setLive(false)"
+                            class="px-3 py-1.5 rounded-lg bg-green-600 text-sm font-semibold text-white hover:bg-green-700">Switch back to group chat QR</button>
+                    </div>
+                </div>
                 <div v-if="activity.equipment_qr_codes?.length" class="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
-                    <div class="flex flex-col items-center rounded-lg border border-gray-200 p-4 text-center">
+                    <div v-if="qr.live" class="flex w-56 flex-col items-center rounded-lg border border-dashed border-green-300 bg-green-50 p-4 text-center text-sm text-green-800">
+                        Classroom mode: show the Live QR on screen. It changes every minute, so a shared picture stops working.
+                    </div>
+                    <div v-else class="flex flex-col items-center rounded-lg border border-gray-200 p-4 text-center">
                         <QrCode :value="qrUrl" :size="180" :label="activity.title" />
                         <p class="mt-1 text-[11px] text-gray-400">{{ activity.qr_scan_count ?? 0 }} scan(s)</p>
                     </div>
@@ -188,6 +272,7 @@ const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PH', { year
                 <p v-else class="text-sm text-gray-400">No borrowing requests linked to this activity.</p>
             </div>
         </div>
+        <ConfirmModal :show="showNewQrModal" title="Make a New QR Code" message="The current QR code (and every screenshot of it) will stop working. Share the new QR code with your class." confirmLabel="Yes, Make New QR" confirmClass="bg-green-600 hover:bg-green-700" @confirmed="doNewQr" @cancelled="showNewQrModal = false" />
         <ConfirmModal :show="showCancelModal" title="Cancel Activity" message="Requests that haven't been released yet will be cancelled, the equipment goes back to stock, and the students will be notified. The QR codes will stop working. The activity's record is kept." confirmLabel="Yes, Cancel Activity" confirmClass="bg-red-600 hover:bg-red-700" @confirmed="doCancel" @cancelled="showCancelModal = false" />
     </UserLayout>
 </template>

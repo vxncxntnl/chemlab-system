@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\ActivityEquipmentQr;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -33,9 +34,15 @@ class QrScanController extends Controller
             $activity->increment('qr_scan_count');
         }
 
-        if (!$activity->isOpenForRequests()) {
-            $message = $activity->closedMessage();
+        // Closed activity, outside the activity's time, or (Live mode) an
+        // old picture of the on-screen code: the scan stops here.
+        $message = !$activity->isOpenForRequests()
+            ? $activity->closedMessage()
+            : ($activity->qrWindowMessage() ?? ($activity->qr_live && !$activity->acceptsLiveCode(request()->query('c'))
+                ? 'This QR code has already changed. Scan the QR code shown on your instructor\'s screen right now.'
+                : null));
 
+        if ($message) {
             return Auth::check()
                 ? redirect()->route('dashboard')->with('error', $message)
                 : redirect()->route('login')->with('status', $message);
@@ -137,26 +144,49 @@ class QrScanController extends Controller
             );
         }
 
-        // A student on a different campus than the instructor is the clearest
-        // sign the QR left its intended class: no roster enrollment and no
-        // activity link (so no auto-approval) — they can still make a normal
-        // request for review.
+        // A student of another campus is the clearest sign the QR left its
+        // class: rejected outright.
         $sameCampus = !$activity->instructor?->campus_id
-            || $activity->instructor->campus_id === $user->campus_id;
+            || (int) $activity->instructor->campus_id === (int) $user->campus_id;
 
         if (!$sameCampus) {
-            AuditLog::log($user->id, 'QR Scanned Outside Instructor Campus', 'activities', $activity->id, null, [
+            AuditLog::log($user->id, 'QR Scan Blocked — Different Campus', 'activities', $activity->id, null, [
                 'activity_id' => $activity->id,
-                'equipment_inventory_id' => $itemQr?->equipment_inventory_id,
             ]);
 
-            return redirect()->route('student.borrowings.create', array_filter([
-                'inventory_id' => $itemQr?->equipment_inventory_id,
-            ]));
+            return redirect()->route('dashboard')->with('error',
+                'This QR code is for an activity at another campus, so you can\'t borrow through it.'
+            );
         }
 
-        // Scanning enrolls the student in the activity (the class roster).
-        $activity->students()->syncWithoutDetaching([$user->id]);
+        // The school's enrollment records aren't available, so the instructor
+        // decides who is in the class: scanning only asks to join. Students
+        // the instructor approved before for the same class are let in.
+        $entry = $activity->students()->where('activity_students.student_id', $user->id)->first();
+        $status = $entry?->pivot->status;
+
+        if (!$entry) {
+            $status = $activity->wasApprovedBeforeForSameClass($user->id) ? 'approved' : 'pending';
+            $activity->students()->attach($user->id, [
+                'status' => $status,
+                'approved_at' => $status === 'approved' ? now() : null,
+            ]);
+
+            if ($status === 'pending') {
+                NotificationService::joinRequestReceived($activity, $user);
+            }
+        }
+
+        if ($status === 'pending') {
+            return redirect()->route('dashboard')->with('info',
+                "You asked to join \"{$activity->title}\". Please wait for your instructor to approve you — you'll get a notification, then you can borrow."
+            );
+        }
+        if ($status === 'rejected') {
+            return redirect()->route('dashboard')->with('error',
+                "Your instructor didn't add you to \"{$activity->title}\". If you are in this class, please talk to your instructor."
+            );
+        }
 
         // Activity QR: the form is pre-filled with all of the activity's
         // equipment. Old per-item QR: just that item.

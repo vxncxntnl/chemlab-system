@@ -42,7 +42,7 @@ class ApprovalReleaseRaceGuardTest extends TestCase
             'total_quantity' => 5, 'available_quantity' => 4,
         ]);
         $this->faculty = User::factory()->create(['role' => 'faculty', 'status' => 'active']);
-        $student = User::factory()->create(['role' => 'student', 'status' => 'active']);
+        $student = User::factory()->create(['role' => 'student', 'status' => 'active', 'student_id' => 'S-RACE-1']);
 
         $borrowing = Borrowing::create(array_merge([
             'user_id' => $student->id,
@@ -176,7 +176,9 @@ class ApprovalReleaseRaceGuardTest extends TestCase
         $borrowing = $this->makeBorrowing('approved');
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
 
-        $first = $this->actingAs($admin)->post("/admin/borrowings/{$borrowing->id}/release");
+        // The admin types the student number from the school ID (ID check at release).
+        $idCheck = ['student_id' => $borrowing->user->student_id ?? $borrowing->user->employee_id, 'id_checked' => '1'];
+        $first = $this->actingAs($admin)->post("/admin/borrowings/{$borrowing->id}/release", $idCheck);
         $first->assertRedirect();
         $this->assertSame('borrowed', $borrowing->fresh()->status);
 
@@ -184,7 +186,7 @@ class ApprovalReleaseRaceGuardTest extends TestCase
         // practice (status is no longer 'approved'), but the point of this
         // suite is that even if that pre-check is ever removed or raced
         // past, the service layer itself still refuses.
-        $second = $this->actingAs($admin)->post("/admin/borrowings/{$borrowing->id}/release");
+        $second = $this->actingAs($admin)->post("/admin/borrowings/{$borrowing->id}/release", $idCheck);
         $second->assertRedirect();
         $this->assertSame('borrowed', $borrowing->fresh()->status, 'Status must remain unchanged after a rejected repeat release.');
     }
