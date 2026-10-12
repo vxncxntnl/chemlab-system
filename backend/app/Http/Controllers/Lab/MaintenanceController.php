@@ -63,21 +63,20 @@ class MaintenanceController extends Controller
                     fn ($query) => $query->whereIn('id', EquipmentInventory::where('campus_id', $campusId)->pluck('equipment_id'))
                 ),
             ],
-            'type'                  => 'required|in:routine,repair,inspection,calibration,replacement',
+            'type'                  => ['required', \Illuminate\Validation\Rule::in(MaintenanceLog::TYPES)],
             'description'           => 'required|string',
             'cost'                  => 'nullable|numeric|min:0',
             'maintenance_date'      => 'required|date',
             'next_maintenance_date' => 'nullable|date|after:maintenance_date',
-            'status'                => 'required|in:scheduled,in_progress,completed,cancelled',
+            'status'                => ['required', \Illuminate\Validation\Rule::in(MaintenanceLog::NEW_STATUSES)],
             'notes'                 => 'nullable|string',
         ]);
 
         $validated['performed_by'] = auth()->id();
         $validated['equipment_unit_id'] = \App\Support\MaintenanceUnits::validatedUnitId($request, (int) $campusId);
         $validated['campus_id'] = $campusId;
-        $validated['cost'] = $validated['cost'] ?? 0;
 
-        MaintenanceLog::create($validated);
+        MaintenanceLog::create(MaintenanceLog::normalize($validated));
 
         // If it's a completed repair, restore equipment condition to good
         if ($validated['type'] === 'repair' && $validated['status'] === 'completed') {

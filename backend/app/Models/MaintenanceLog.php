@@ -29,6 +29,33 @@ class MaintenanceLog extends Model
 
     // Maintenance history must stay readable even after the equipment or
     // the staff member who performed the work is later soft-deleted.
+    /**
+     * Types offered for new logs. "Replacement" isn't one: damaged items are
+     * replaced through Damage Reports (the lab's replace policy), so it would
+     * record the same event in two places. Older logs may still have it.
+     */
+    public const TYPES = ['routine', 'repair', 'inspection', 'calibration'];
+
+    /** A new log can't start as "cancelled" — that's only for calling off a planned one (Edit). */
+    public const NEW_STATUSES = ['scheduled', 'in_progress', 'completed'];
+
+    /** Only recurring work has a "next maintenance date". */
+    public const RECURRING_TYPES = ['routine', 'inspection', 'calibration'];
+
+    /**
+     * Shared clean-up for saving a log: a next date only for recurring
+     * types, and a blank cost saved as 0 (the column requires a value).
+     */
+    public static function normalize(array $data): array
+    {
+        if (!in_array($data['type'] ?? null, self::RECURRING_TYPES, true)) {
+            $data['next_maintenance_date'] = null;
+        }
+        $data['cost'] = $data['cost'] ?? 0;
+
+        return $data;
+    }
+
     /** The exact unit (serial number) being maintained, for serial-tracked items. */
     public function unit(): BelongsTo
     {

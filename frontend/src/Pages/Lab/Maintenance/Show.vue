@@ -81,7 +81,7 @@ const statusBadge: Record<string, string> = {
             </div>
 
             <div v-if="maintenance.notes">
-                <p class="text-xs font-medium text-gray-500 uppercase">Notes</p>
+                <p class="text-xs font-medium text-gray-500 uppercase">Findings / Remarks</p>
                 <p class="mt-1 text-sm text-gray-500 whitespace-pre-wrap">{{ maintenance.notes }}</p>
             </div>
         </div>

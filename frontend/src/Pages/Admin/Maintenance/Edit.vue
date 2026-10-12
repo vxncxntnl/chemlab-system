@@ -6,6 +6,7 @@ import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import MaintenanceUnitPicker from '@/Components/MaintenanceUnitPicker.vue';
 import { useForm, Link } from '@inertiajs/vue3';
+import { watch } from 'vue';
 
 const props = defineProps<{
     maintenance: {
@@ -32,12 +33,17 @@ const form = useForm({
     equipment_unit_id: (props.maintenance.equipment_unit_id ?? '') as number | string,
     type: props.maintenance.type,
     description: props.maintenance.description,
-    cost: props.maintenance.cost || '',
+    cost: Number(props.maintenance.cost) ? props.maintenance.cost : '',
     maintenance_date: props.maintenance.maintenance_date,
     next_maintenance_date: props.maintenance.next_maintenance_date || '',
     status: props.maintenance.status,
     notes: props.maintenance.notes || '',
 });
+
+
+// Only recurring work (routine / inspection / calibration) has a next date.
+const recurring = ['routine', 'inspection', 'calibration'];
+watch(() => form.type, (type) => { if (!recurring.includes(type)) form.next_maintenance_date = ''; });
 
 const submit = () => {
     form.put(route('admin.maintenance.update', props.maintenance.id));
@@ -80,7 +86,7 @@ const submit = () => {
                             <option value="repair">Repair</option>
                             <option value="inspection">Inspection</option>
                             <option value="calibration">Calibration</option>
-                            <option value="replacement">Replacement</option>
+                            <option v-if="props.maintenance.type === 'replacement'" value="replacement">Replacement (older log)</option>
                         </select>
                     </div>
                     <div>
@@ -113,19 +119,19 @@ const submit = () => {
                         <InputLabel value="Maintenance Date" />
                         <TextInput v-model="form.maintenance_date" type="date" class="mt-1 block w-full" required />
                     </div>
-                    <div>
-                        <InputLabel value="Next Maintenance Date" />
+                    <div v-if="recurring.includes(form.type)">
+                        <InputLabel value="Next Maintenance Date (Optional)" />
                         <TextInput v-model="form.next_maintenance_date" type="date" class="mt-1 block w-full" />
                     </div>
                 </div>
 
                 <div>
-                    <InputLabel value="Cost (₱)" />
-                    <TextInput v-model="form.cost" type="number" step="0.01" min="0" class="mt-1 block w-full" />
+                    <InputLabel value="Cost (₱) (Optional)" />
+                    <TextInput v-model="form.cost" type="number" step="0.01" min="0" class="mt-1 block w-full" placeholder="Leave blank if free" />
                 </div>
 
                 <div>
-                    <InputLabel value="Notes" />
+                    <InputLabel value="Findings / Remarks (Optional)" />
                     <textarea
                         v-model="form.notes"
                         rows="2"

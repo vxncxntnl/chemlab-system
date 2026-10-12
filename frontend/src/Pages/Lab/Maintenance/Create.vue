@@ -7,6 +7,7 @@ import MaintenanceUnitPicker from '@/Components/MaintenanceUnitPicker.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import BackButton from '@/Components/BackButton.vue';
 import { Link, useForm } from '@inertiajs/vue3';
+import { watch } from 'vue';
 
 defineProps<{
     equipment: Array<{ id: number; name: string; units?: Array<{ id: number; label: string; under_maintenance: boolean }> }>;
@@ -27,6 +28,10 @@ const form = useForm({
 const submit = () => {
     form.post(route('lab.maintenance.store'));
 };
+
+// Only recurring work (routine / inspection / calibration) has a next date.
+const recurring = ['routine', 'inspection', 'calibration'];
+watch(() => form.type, (type) => { if (!recurring.includes(type)) form.next_maintenance_date = ''; });
 </script>
 
 <template>
@@ -72,7 +77,6 @@ const submit = () => {
                                 <option value="repair">Repair</option>
                                 <option value="inspection">Inspection</option>
                                 <option value="calibration">Calibration</option>
-                                <option value="replacement">Replacement</option>
                             </select>
                             <InputError :message="form.errors.type" class="mt-1" />
                         </div>
@@ -88,7 +92,6 @@ const submit = () => {
                                 <option value="scheduled">Scheduled</option>
                                 <option value="in_progress">In Progress</option>
                                 <option value="completed">Completed</option>
-                                <option value="cancelled">Cancelled</option>
                             </select>
                             <InputError :message="form.errors.status" class="mt-1" />
                         </div>
@@ -105,7 +108,7 @@ const submit = () => {
                             <InputError :message="form.errors.maintenance_date" class="mt-1" />
                         </div>
 
-                        <div>
+                        <div v-if="recurring.includes(form.type)">
                             <InputLabel for="next_maintenance_date" value="Next Maintenance Date (optional)" />
                             <TextInput
                                 id="next_maintenance_date"
@@ -125,7 +128,7 @@ const submit = () => {
                                 step="0.01"
                                 min="0"
                                 class="mt-1 block w-full"
-                                placeholder="0.00"
+                                placeholder="Leave blank if free"
                             />
                             <InputError :message="form.errors.cost" class="mt-1" />
                         </div>
@@ -145,13 +148,13 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <InputLabel for="notes" value="Additional Notes (optional)" />
+                        <InputLabel for="notes" value="Findings / Remarks (optional)" />
                         <textarea
                             id="notes"
                             v-model="form.notes"
                             rows="2"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="Any additional remarks..."
+                            placeholder="e.g., Lens cleaned; needs new bulb next month"
                         ></textarea>
                     </div>
 

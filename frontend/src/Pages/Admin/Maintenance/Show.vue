@@ -87,7 +87,7 @@ const getStatusBadge = (status: string): BadgeVariant => {
                         <p class="font-medium">{{ maintenance.description }}</p>
                     </div>
                     <div v-if="maintenance.notes" class="col-span-2">
-                        <p class="text-sm text-gray-500">Notes</p>
+                        <p class="text-sm text-gray-500">Findings / Remarks</p>
                         <p class="font-medium">{{ maintenance.notes }}</p>
                     </div>
                 </div>

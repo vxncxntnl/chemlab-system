@@ -41,12 +41,12 @@ class MaintenanceController extends Controller
     {
         $validated = $request->validate([
             'equipment_id' => ['required', Rule::exists('equipment', 'id')->where(fn ($q) => $q->whereIn('id', EquipmentInventory::where('campus_id', CampusAccess::adminCampusId(auth()->user()))->select('equipment_id')))],
-            'type' => 'required|in:routine,repair,inspection,calibration,replacement',
+            'type' => ['required', \Illuminate\Validation\Rule::in(MaintenanceLog::TYPES)],
             'description' => 'required|string',
             'cost' => 'nullable|numeric|min:0',
             'maintenance_date' => 'required|date',
             'next_maintenance_date' => 'nullable|date|after:maintenance_date',
-            'status' => 'required|in:scheduled,in_progress,completed,cancelled',
+            'status' => ['required', \Illuminate\Validation\Rule::in(MaintenanceLog::NEW_STATUSES)],
             'notes' => 'nullable|string',
         ]);
 
@@ -54,7 +54,7 @@ class MaintenanceController extends Controller
         $validated['equipment_unit_id'] = \App\Support\MaintenanceUnits::validatedUnitId($request, CampusAccess::adminCampusId(auth()->user()));
         $validated['campus_id'] = CampusAccess::adminCampusId(auth()->user());
 
-        $maintenance = MaintenanceLog::create($validated);
+        $maintenance = MaintenanceLog::create(MaintenanceLog::normalize($validated));
 
         // Update equipment condition if needed
         if ($validated['type'] === 'repair' && $validated['status'] === 'completed') {
@@ -94,7 +94,7 @@ class MaintenanceController extends Controller
     {
         $validated = $request->validate([
             'equipment_id' => ['required', Rule::exists('equipment', 'id')->where(fn ($q) => $q->whereIn('id', EquipmentInventory::where('campus_id', CampusAccess::adminCampusId(auth()->user()))->select('equipment_id')))],
-            'type' => 'required|in:routine,repair,inspection,calibration,replacement',
+            'type' => ['required', \Illuminate\Validation\Rule::in([...MaintenanceLog::TYPES, $maintenance->type])],
             'description' => 'required|string',
             'cost' => 'nullable|numeric|min:0',
             'maintenance_date' => 'required|date',
@@ -104,7 +104,7 @@ class MaintenanceController extends Controller
         ]);
 
         $validated['equipment_unit_id'] = \App\Support\MaintenanceUnits::validatedUnitId($request, CampusAccess::adminCampusId(auth()->user()));
-        $maintenance->update($validated);
+        $maintenance->update(MaintenanceLog::normalize($validated));
 
         AuditLog::log(auth()->id(), 'Updated Maintenance Log', 'maintenance_logs', $maintenance->id);
 
