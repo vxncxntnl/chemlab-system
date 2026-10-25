@@ -156,6 +156,33 @@ class CampusAccessControlTest extends TestCase
         $this->assertSame($this->campus['Carmen']->id, $student->fresh()->campus_id);
     }
 
+    public function test_a_new_student_cannot_join_a_campus_without_an_admin(): void
+    {
+        $newcomer = fn () => User::factory()->create(['role' => 'student', 'status' => 'pending', 'campus_id' => null, 'student_id' => null, 'course' => null]);
+
+        // The form lists every campus, with only the open ones selectable.
+        $campuses = collect($this->actingAs($newcomer())->get('/complete-profile')->viewData('page')['props']['campuses'])
+            ->pluck('open', 'id');
+        $this->assertTrue($campuses[$this->campus['Carmen']->id], 'Main campus is always open.');
+        $this->assertTrue($campuses[$this->campus['Puerto']->id], 'Puerto has an admin.');
+        $this->assertFalse($campuses[$this->campus['Iligan']->id], 'Iligan has no admin yet.');
+
+        $student = $newcomer();
+        $this->actingAs($student)->post('/complete-profile', ['role' => 'student', 'campus_id' => $this->campus['Iligan']->id, 'student_id' => 'S-IL', 'course' => 'Nursing'])
+            ->assertSessionHasErrors('campus_id');
+        $this->assertNull($student->fresh()->campus_id);
+
+        $this->actingAs($student)->post('/complete-profile', ['role' => 'student', 'campus_id' => $this->campus['Puerto']->id, 'student_id' => 'S-PU', 'course' => 'Nursing'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($this->campus['Puerto']->id, $student->fresh()->campus_id);
+
+        // Faculty can still sign up there; the main admin approves them.
+        $faculty = User::factory()->create(['role' => 'student', 'status' => 'pending', 'campus_id' => null]);
+        $this->actingAs($faculty)->post('/complete-profile', ['role' => 'faculty', 'campus_id' => $this->campus['Iligan']->id, 'department' => 'Health Sciences'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($this->campus['Iligan']->id, $faculty->fresh()->campus_id);
+    }
+
     public function test_each_admin_sees_only_the_users_they_manage(): void
     {
         $puerto = $this->ids($this->actingAs($this->puertoAdmin)->get('/admin/users'), 'users');

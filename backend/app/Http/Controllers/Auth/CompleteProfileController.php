@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\QrScanController;
 use App\Models\Campus;
 use App\Services\NotificationService;
+use App\Support\CampusAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +22,15 @@ class CompleteProfileController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $campuses = Campus::orderBy('campus_name')->get(['id', 'campus_name']);
+        // A student can only join a campus where borrowing is open (the main
+        // campus, or one that already has its own admin). The others stay
+        // listed but greyed out on the form.
+        $campuses = Campus::orderBy('campus_name')->get(['id', 'campus_name'])
+            ->map(fn ($campus) => [
+                'id'          => $campus->id,
+                'campus_name' => $campus->campus_name,
+                'open'        => CampusAccess::borrowingOpenAt($campus->id),
+            ]);
 
         return Inertia::render('Auth/CompleteProfile', [
             'campuses' => $campuses,
@@ -83,6 +92,12 @@ class CompleteProfileController extends Controller
                 'student_id' => 'required|string|max:50',
                 'course'     => 'required|string|max:100',
             ]);
+
+            if (!CampusAccess::borrowingOpenAt((int) $request->campus_id)) {
+                return back()->withErrors([
+                    'campus_id' => 'This campus is not available yet because it has no administrator. Please choose another campus or try again later.',
+                ]);
+            }
 
             $user->update([
                 'role'       => 'student',

@@ -4,7 +4,8 @@ import { Head, useForm } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 const props = defineProps<{
-    campuses: { id: number; campus_name: string }[];
+    // open = the campus has an admin (or is the main campus), so students can join it
+    campuses: { id: number; campus_name: string; open: boolean }[];
     user: any;
 }>();
 
@@ -46,7 +47,15 @@ watch(selectedRole, (val) => {
     form.course = '';
     form.department = '';
     form.clearErrors();
+    // A faculty member may pick a campus that isn't open to students yet
+    if (val === 'student' && isCampusClosed(form.campus_id)) {
+        form.campus_id = '';
+    }
 });
+
+// Closed campuses stay visible for students, just not selectable
+const isCampusClosed = (campusId: number | string) =>
+    props.campuses.some((c) => c.id === Number(campusId) && !c.open);
 
 const submit = () => form.post(route('profile.complete.store'));
 </script>
@@ -132,10 +141,21 @@ const submit = () => form.post(route('profile.complete.store'));
                                 class="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition bg-white"
                             >
                                 <option value="" disabled>Select your campus</option>
-                                <option v-for="campus in campuses" :key="campus.id" :value="campus.id">
-                                    {{ campus.campus_name }}
+                                <option
+                                    v-for="campus in campuses"
+                                    :key="campus.id"
+                                    :value="campus.id"
+                                    :disabled="selectedRole === 'student' && !campus.open"
+                                >
+                                    {{ campus.campus_name }}{{ selectedRole === 'student' && !campus.open ? ' (not available yet)' : '' }}
                                 </option>
                             </select>
+                            <p
+                                v-if="selectedRole === 'student' && campuses.some((c) => !c.open)"
+                                class="mt-1 text-xs text-gray-500"
+                            >
+                                Campuses marked "not available yet" have no administrator yet.
+                            </p>
                             <InputError class="mt-1" :message="form.errors.campus_id" />
                         </div>
 
